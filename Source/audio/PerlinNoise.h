@@ -115,7 +115,6 @@ namespace audio
 
 		void processOctaves(float* smpls, const float* octavesBuf, int numSamples) noexcept
 		{
-			///*
 			if (!octavesPRM.smoothing)
 			{
 				const auto octFloor = std::floor(octaves);
@@ -135,22 +134,15 @@ namespace audio
 				const auto octFrac = octaves - octFloor;
 				if (octFrac != 0.f)
 				{
-					const auto octCeil = static_cast<int>(octFloor) + 1;
+					const auto octFloorInt = static_cast<int>(octFloor);
 
 					for (auto s = 0; s < numSamples; ++s)
 					{
-						auto sample = 0.f;
-						for (auto o = 0; o < octCeil; ++o)
-						{
-							const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-							sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
-						}
-
-						smpls[s] += octFrac * (sample - smpls[s]);
+						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
+						const auto sample = interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[octFloorInt];
+						smpls[s] += octFrac * sample;
 					}
 				}
-
-				SIMD::multiply(smpls, .5f, numSamples);
 			}
 			else
 			{
@@ -170,107 +162,14 @@ namespace audio
 					const auto octFrac = octavesBuf[s] - octFloor;
 					if (octFrac != 0.f)
 					{
-						const auto octCeil = static_cast<int>(octFloor) + 1;
-
-						sample = 0.f;
-						for (auto o = 0; o < octCeil; ++o)
-						{
-							const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-							sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
-						}
-
-						smpls[s] += octFrac * (sample - smpls[s]);
-					}
-
-					smpls[s] *= .5f;
-				}
-			}
-			//*/
-			
-			/*
-			if (!octavesPRM.smoothing)
-			{
-				const auto octFloor = std::floor(octaves);
-
-				for (auto s = 0; s < numSamples; ++s)
-				{
-					auto sample = 0.f;
-					for (auto o = 0; o < octFloor; ++o)
-					{
-						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
-					}
-
-					smpls[s] = sample;
-				}
-
-				auto gain = gainBuffer[0];
-				for (auto o = 1; o < octFloor; ++o)
-					gain += gainBuffer[o];
-
-				const auto octFrac = octaves - octFloor;
-				if (octFrac != 0.f)
-				{
-					const auto octCeil = static_cast<int>(octFloor) + 1;
-
-					for (auto s = 0; s < numSamples; ++s)
-					{
-						auto sample = 0.f;
-						for (auto o = 0; o < octCeil; ++o)
-						{
-							const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-							sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
-						}
-
-						smpls[s] += octFrac * (sample - smpls[s]);
-					}
-
-					gain += octFrac * gainBuffer[octCeil];
-				}
-
-				SIMD::multiply(smpls, 1.f / std::sqrt(gain), numSamples);
-			}
-			else
-			{
-				for (auto s = 0; s < numSamples; ++s)
-				{
-					const auto octFloor = std::floor(octavesBuf[s]);
-					
-					auto sample = 0.f;
-					for (auto o = 0; o < octFloor; ++o)
-					{
-						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
-					}
-
-					smpls[s] = sample;
-
-					auto gain = gainBuffer[0];
-					for (auto o = 1; o < octFloor; ++o)
-						gain += gainBuffer[o];
-
-					const auto octFrac = octavesBuf[s] - octFloor;
-					if (octFrac != 0.f)
-					{
-						const auto octCeil = static_cast<int>(octFloor) + 1;
+						const auto octFloorInt = static_cast<int>(octFloor);
 						
-						sample = 0.f;
-						for (auto o = 0; o < octCeil; ++o)
-						{
-							const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-							sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
-						}
-
-						smpls[s] += octFrac * (sample - smpls[s]);
-
-						gain += octFrac * gainBuffer[octCeil];
+						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
+						sample = interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[octFloorInt];
+						smpls[s] += octFrac * sample;
 					}
-
-					smpls[s] /= std::sqrt(gain);
 				}
 			}
-			*/
-			
 		}
 
 		void processWidth(float* const* samples, const float* octavesBuf, int numSamples) noexcept
