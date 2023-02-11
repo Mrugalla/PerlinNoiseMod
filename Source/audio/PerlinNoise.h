@@ -96,7 +96,7 @@ namespace audio
 		
 		// phase
 		Phasor<double> phasor;
-		std::vector<PerlinPhase> phaseBuffer;
+		std::vector<float> phaseBuffer;
 		int noiseIdx;
 
 		// parameters
@@ -113,8 +113,7 @@ namespace audio
 				if (phaseInfo.retrig)
 					noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
 				
-				phaseBuffer[s].phase = static_cast<float>(phaseInfo.phase);
-				phaseBuffer[s].idx = static_cast<float>(noiseIdx);
+				phaseBuffer[s] = static_cast<float>(phaseInfo.phase) + static_cast<float>(noiseIdx);
 			}
 		}
 
@@ -124,12 +123,10 @@ namespace audio
 
 			for (auto s = 0; s < numSamples; ++s)
 			{
-				const auto phaseInfo = phaseBuffer[s].phase + phaseBuffer[s].idx;
-				
 				auto sample = 0.f;
 				for (auto o = 0; o < octFloor; ++o)
 				{
-					const auto phase = getPhaseOctaved(phaseInfo, o);
+					const auto phase = getPhaseOctaved(phaseBuffer[s], o);
 					sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
 				}
 
@@ -143,12 +140,10 @@ namespace audio
 
 				for (auto s = 0; s < numSamples; ++s)
 				{
-					const auto phaseInfo = phaseBuffer[s].phase + phaseBuffer[s].idx;
-
 					auto sample = 0.f;
 					for (auto o = 0; o < octCeil; ++o)
 					{
-						const auto phase = getPhaseOctaved(phaseInfo, o);
+						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
 						sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
 					}
 
@@ -173,15 +168,9 @@ namespace audio
 				if (width == 0.f)
 					return SIMD::copy(samples[1], samples[0], numSamples);
 				else
-				{
-					for (auto s = 0; s < numSamples; ++s)
-						phaseBuffer[s].phase += width;
-				}
+					SIMD::add(phaseBuffer.data(), width, numSamples);
 			else
-			{
-				for (auto s = 0; s < numSamples; ++s)
-					phaseBuffer[s].phase += widthBuf[s];
-			}
+				SIMD::add(phaseBuffer.data(), widthBuf, numSamples);
 
 			processOctaves(samples[1], numSamples);
 		}
