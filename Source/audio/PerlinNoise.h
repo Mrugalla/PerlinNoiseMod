@@ -132,6 +132,12 @@ namespace audio
 
 				smpls[s] = sample;
 			}
+			
+			auto gain = 0.f;
+			{
+				for (auto o = 0; o < octFloor; ++o)
+					gain += gainBuffer[o];
+			}
 
 			const auto octFrac = octaves - octFloor;
 			if (octFrac != 0.f)
@@ -149,16 +155,11 @@ namespace audio
 
 					smpls[s] += octFrac * (sample - smpls[s]);
 				}
+
+				gain += octFrac * gainBuffer[octCeil];
 			}
 			
-
-			auto gain = 0.f;
-			{
-				for (auto o = 0; o < octaves; ++o)
-					gain += gainBuffer[o];
-			}
-			gain = 1.f / std::sqrt(gain);
-			SIMD::multiply(smpls, gain, numSamples);
+			SIMD::multiply(smpls, 1.f / std::sqrt(gain), numSamples);
 		}
 
 		void processWidth(float* const* samples, int numSamples) noexcept
