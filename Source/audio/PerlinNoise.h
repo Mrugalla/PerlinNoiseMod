@@ -36,7 +36,7 @@ namespace audio
 			unsigned int _seed = 420 * 69 / 666 * 42;
 			std::random_device rd;
 			std::mt19937 mt(rd());
-			std::uniform_real_distribution<float> dist(-1.f, 1.f); // compensate spline overshoot
+			std::uniform_real_distribution<float> dist(-.8f, .8f); // compensate spline overshoot
 			
 			for (auto s = 0; s < NoiseSize; ++s, ++_seed)
 			{
@@ -131,6 +131,10 @@ namespace audio
 					smpls[s] = sample;
 				}
 
+				auto gain = 0.f;
+				for (auto o = 0; o < octFloor; ++o)
+					gain += gainBuffer[o];
+
 				const auto octFrac = octaves - octFloor;
 				if (octFrac != 0.f)
 				{
@@ -142,7 +146,11 @@ namespace audio
 						const auto sample = interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[octFloorInt];
 						smpls[s] += octFrac * sample;
 					}
+
+					gain += octFrac * gainBuffer[octFloorInt];
 				}
+				
+				SIMD::multiply(smpls, 1.f / std::sqrt(gain), numSamples);
 			}
 			else
 			{
@@ -159,6 +167,10 @@ namespace audio
 
 					smpls[s] = sample;
 
+					auto gain = 0.f;
+					for (auto o = 0; o < octFloor; ++o)
+						gain += gainBuffer[o];
+
 					const auto octFrac = octavesBuf[s] - octFloor;
 					if (octFrac != 0.f)
 					{
@@ -167,7 +179,11 @@ namespace audio
 						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
 						sample = interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[octFloorInt];
 						smpls[s] += octFrac * sample;
+
+						gain += octFrac * gainBuffer[octFloorInt];
 					}
+
+					smpls[s] /= std::sqrt(gain);
 				}
 			}
 		}
@@ -212,7 +228,6 @@ namespace audio
 /*
 
 todo features:
-	octaves smoothing wrong
 	seed
 	temposync rate
 
