@@ -36,7 +36,7 @@ namespace audio
 			unsigned int _seed = 420 * 69 / 666 * 42;
 			std::random_device rd;
 			std::mt19937 mt(rd());
-			std::uniform_real_distribution<float> dist(-.8f, .8f); // compensate spline overshoot
+			std::uniform_real_distribution<float> dist(-1.f, 1.f); // compensate spline overshoot
 			
 			for (auto s = 0; s < NoiseSize; ++s, ++_seed)
 			{
@@ -58,7 +58,7 @@ namespace audio
 		{
 			fs = _sampleRate;
 			fsInv = 1.f / fs;
-			octavesPRM.prepare(fs, blockSize, 1.f);
+			octavesPRM.prepare(fs, blockSize, 10.f);
 			widthPRM.prepare(fs, blockSize, 20.f);
 			phaseBuffer.resize(blockSize);
 		}
