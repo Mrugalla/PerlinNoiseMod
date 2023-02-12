@@ -296,5 +296,7 @@ optimize:
 bugs:
 	temposync
 		smooth rate changes
+			1: temporarily lp the output
+			2: crossfade 2 perlinNoise instances
 
 */
