@@ -15,6 +15,7 @@ namespace gui
 			rateBeats(u),
             oct(u),
             width(u),
+            phase(u),
             rateType(u)
         {
             makeParameter(rateHz, PID::RateHz, "Rate");
@@ -28,14 +29,17 @@ namespace gui
 
 			makeParameter(width, PID::Width, "Width");
 			addAndMakeVisible(width);
+
+			makeParameter(phase, PID::RatePhase, "Phase");
+			addAndMakeVisible(phase);
             
 			makeParameter(rateType, PID::RateType, ButtonSymbol::TempoSync);
 			addAndMakeVisible(rateType);
             
             layout.init
             (
-                { 1, 13, 13, 13, 1 },
-                { 1, 13, 2, 1 }
+                { 1, 13, 13, 13, 13, 1 },
+                { 1, 13, 3, 1 }
             );
 
             startTimerHz(24);
@@ -53,6 +57,7 @@ namespace gui
             layout.place(rateBeats, 1, 1, 1, 1, false);
 			layout.place(oct, 2, 1, 1, 1, false);
 			layout.place(width, 3, 1, 1, 1, false);
+			layout.place(phase, 4, 1, 1, 1, false);
 			
             layout.place(rateType, 1, 2, 1, 1, true);
         }
@@ -65,7 +70,7 @@ namespace gui
         }
 
     protected:
-		Knob rateHz, rateBeats, oct, width;
+		Knob rateHz, rateBeats, oct, width, phase;
         Button rateType;
     };
 }

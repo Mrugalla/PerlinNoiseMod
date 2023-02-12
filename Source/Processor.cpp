@@ -486,13 +486,15 @@ namespace audio
 		auto oct = params[PID::Octaves]->getValModDenorm();
 		auto width = params[PID::Width]->getValMod();
 		auto rateType = params[PID::RateType]->getValMod() > .5f;
+		auto phase = params[PID::RatePhase]->getValModDenorm();
 		
         perlin.setParameters
         (
-            rateHz,
-            rateBeats,
+            (double)rateHz,
+            (double)rateBeats,
             oct,
             width,
+            phase,
             rateType
         );
 

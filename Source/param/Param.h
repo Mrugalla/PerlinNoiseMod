@@ -67,6 +67,7 @@ namespace param
 		Octaves,
 		Width,
 		RateType,
+		RatePhase,
 
 		NumParams
 	};

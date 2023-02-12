@@ -35,8 +35,10 @@ namespace audio
 			rateBeatsInv(1.),
 			octavesPRM(1.f),
 			widthPRM(0.f),
+			phsPRM(0.f),
 			octaves(1.f),
 			width(0.f),
+			phs(0.f),
 			rateType(false)
 		{
 			unsigned int _seed = 420 * 69 / 666 * 42;
@@ -54,9 +56,7 @@ namespace audio
 				noise[NoiseSize + s] = noise[s];
 
 			for (auto o = 0; o < gainBuffer.size(); ++o)
-			{
 				gainBuffer[o] = 1.f / static_cast<float>(1 << o);
-			}
 		}
 
 		/* sampleRate, blockSize */
@@ -67,11 +67,12 @@ namespace audio
 			sampleRateInv = static_cast<double>(fsInv);
 			octavesPRM.prepare(fs, blockSize, 10.f);
 			widthPRM.prepare(fs, blockSize, 20.f);
+			phsPRM.prepare(fs, blockSize, 20.f);
 			phaseBuffer.resize(blockSize);
 		}
 
-		/* rateHz, rateBeats, octaves, width, rateType */
-		void setParameters(double _rateHz, double _rateBeats, float _octaves, float _width, bool _rateType) noexcept
+		/* rateHz, rateBeats, octaves, width, phase, rateType */
+		void setParameters(double _rateHz, double _rateBeats, float _octaves, float _width, float _phs, bool _rateType) noexcept
 		{
 			rateHz = _rateHz * sampleRateInv;
 			if (rateBeats != _rateBeats)
@@ -81,6 +82,7 @@ namespace audio
 			}
 			octaves = _octaves;
 			width = _width;
+			phs = _phs;
 			rateType = _rateType;
 		}
 
@@ -111,9 +113,9 @@ namespace audio
 		int noiseIdx;
 
 		// parameters
-		PRM octavesPRM, widthPRM;
+		PRM octavesPRM, widthPRM, phsPRM;
 		double rateHz, rateBeats, rateBeatsInv;
-		float octaves, width;
+		float octaves, width, phs;
 		bool rateType;
 
 	protected:
@@ -139,14 +141,26 @@ namespace audio
 				}
 			}
 
-			for (auto s = 0; s < numSamples; ++s)
-			{
-				const auto phaseInfo = phasor();
-				if (phaseInfo.retrig)
-					noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
+			const auto phsBuf = phsPRM(phs, numSamples);
 
-				phaseBuffer[s] = static_cast<float>(phaseInfo.phase) + static_cast<float>(noiseIdx);
-			}
+			if(!phsPRM.smoothing)
+				for (auto s = 0; s < numSamples; ++s)
+				{
+					const auto phaseInfo = phasor();
+					if (phaseInfo.retrig)
+						noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
+
+					phaseBuffer[s] = static_cast<float>(phaseInfo.phase + phs) + static_cast<float>(noiseIdx);
+				}
+			else
+				for (auto s = 0; s < numSamples; ++s)
+				{
+					const auto phaseInfo = phasor();
+					if (phaseInfo.retrig)
+						noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
+
+					phaseBuffer[s] = static_cast<float>(phaseInfo.phase + phsBuf[s]) + static_cast<float>(noiseIdx);
+				}
 		}
 
 		void processOctaves(float* smpls, const float* octavesBuf, int numSamples) noexcept
@@ -274,13 +288,13 @@ namespace audio
 /*
 
 todo features:
-	temposync rate
-		seed parameter
+	-
 
 optimize:
-	only update temposync rate if changed
+	fixed blocksize
 
 bugs:
-	smooth rate changes
+	temposync
+		smooth rate changes
 
 */

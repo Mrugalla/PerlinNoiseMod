@@ -76,6 +76,7 @@ namespace param
 		case PID::Octaves: return "Octaves";
 		case PID::Width: return "Width";
 		case PID::RateType: return "Rate Type";
+		case PID::RatePhase: return "Rate Phase";
 
 		default: return "Invalid Parameter Name";
 		}
@@ -1320,6 +1321,7 @@ namespace param
 		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::stepped(1.f, 7.f, 1.f), Unit::Octaves));
 		params.push_back(makeParam(PID::Width, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
 		params.push_back(makeParam(PID::RateType, state, 0.f, makeRange::toggle(), Unit::Power));
+		params.push_back(makeParam(PID::RatePhase, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
 		// LOW LEVEL PARAMS END
 
 		for (auto param : params)
