@@ -150,7 +150,7 @@ namespace audio
 					if (phaseInfo.retrig)
 						noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
 
-					phaseBuffer[s] = static_cast<float>(phaseInfo.phase + phs) + static_cast<float>(noiseIdx);
+					phaseBuffer[s] = static_cast<float>(phaseInfo.phase) + phs + static_cast<float>(noiseIdx);
 				}
 			else
 				for (auto s = 0; s < numSamples; ++s)
@@ -159,7 +159,7 @@ namespace audio
 					if (phaseInfo.retrig)
 						noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
 
-					phaseBuffer[s] = static_cast<float>(phaseInfo.phase + phsBuf[s]) + static_cast<float>(noiseIdx);
+					phaseBuffer[s] = static_cast<float>(phaseInfo.phase) + phsBuf[s] + static_cast<float>(noiseIdx);
 				}
 		}
 
