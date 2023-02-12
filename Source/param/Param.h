@@ -63,9 +63,10 @@ namespace param
 
 		// low level parameters
 		RateHz,
+		RateBeats,
 		Octaves,
 		Width,
-		Seed,
+		RateType,
 
 		NumParams
 	};

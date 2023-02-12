@@ -303,7 +303,7 @@ namespace audio
         const auto _playHeadPos = _playHead->getPosition();
         const bool playHeadValid = _playHeadPos.hasValue();
         if (playHeadValid && _playHeadPos->getBpm() && _playHeadPos->getPpqPosition()
-            && _playHeadPos->getIsPlaying() && _playHeadPos->getTimeInSamples())
+            && _playHeadPos->getTimeInSamples())
         {
 			playHeadPos.bpm = *_playHeadPos->getBpm();
 			playHeadPos.ppqPosition = *_playHeadPos->getPpqPosition();
@@ -482,19 +482,21 @@ namespace audio
     ) noexcept
     {
         auto rateHz = params[PID::RateHz]->getValModDenorm();
+		auto rateBeats = params[PID::RateBeats]->getValModDenorm();
 		auto oct = params[PID::Octaves]->getValModDenorm();
 		auto width = params[PID::Width]->getValMod();
-		auto seed = params[PID::Seed]->getValMod();
-
+		auto rateType = params[PID::RateType]->getValMod() > .5f;
+		
         perlin.setParameters
         (
             rateHz,
+            rateBeats,
             oct,
             width,
-            seed
+            rateType
         );
 
-        perlin(samples, numChannels, numSamples);
+        perlin(samples, numChannels, numSamples, playHeadPos);
     }
 
     void Processor::releaseResources() {}

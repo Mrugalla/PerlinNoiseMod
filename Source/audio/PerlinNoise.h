@@ -9,6 +9,8 @@ namespace audio
 {
 	struct Perlin
 	{
+		using PlayHeadPos = juce::AudioPlayHead::CurrentPositionInfo;
+
 		static constexpr int NumOctaves = 7;
 		static constexpr int NoiseOvershoot = 4;
 	
@@ -17,6 +19,7 @@ namespace audio
 
 		Perlin() :
 			// misc
+			sampleRateInv(1.),
 			fs(1.f),
 			fsInv(1.f),
 			// noise
@@ -27,11 +30,14 @@ namespace audio
 			phaseBuffer(),
 			noiseIdx(0),
 			// parameters
+			rateHz(0.),
+			rateBeats(-1.),
+			rateBeatsInv(1.),
 			octavesPRM(1.f),
 			widthPRM(0.f),
-			rateHz(0.f),
 			octaves(1.f),
-			width(0.f)
+			width(0.f),
+			rateType(false)
 		{
 			unsigned int _seed = 420 * 69 / 666 * 42;
 			std::random_device rd;
@@ -58,23 +64,31 @@ namespace audio
 		{
 			fs = _sampleRate;
 			fsInv = 1.f / fs;
+			sampleRateInv = static_cast<double>(fsInv);
 			octavesPRM.prepare(fs, blockSize, 10.f);
 			widthPRM.prepare(fs, blockSize, 20.f);
 			phaseBuffer.resize(blockSize);
 		}
 
-		/* rateHz, octaves, width, seed */
-		void setParameters(float _rateHz, float _octaves, float _width, float) noexcept
+		/* rateHz, rateBeats, octaves, width, rateType */
+		void setParameters(double _rateHz, double _rateBeats, float _octaves, float _width, bool _rateType) noexcept
 		{
-			rateHz = _rateHz;
+			rateHz = _rateHz * sampleRateInv;
+			if (rateBeats != _rateBeats)
+			{
+				rateBeats = _rateBeats;
+				rateBeatsInv = .25 / rateBeats;
+			}
 			octaves = _octaves;
-			width = _width * 2.f;
+			width = _width;
+			rateType = _rateType;
 		}
 
-		/* samples, numChannels, numSamples */
-		void operator()(float* const* samples, int numChannels, int numSamples) noexcept
+		/* samples, numChannels, numSamples, playHeadPos */
+		void operator()(float* const* samples, int numChannels, int numSamples,
+			const PlayHeadPos& playHeadPos) noexcept
 		{
-			synthesizePhasor(numSamples);
+			synthesizePhasor(numSamples, playHeadPos);
 
 			const auto octavesBuf = octavesPRM(octaves, numSamples);
 			processOctaves(samples[0], octavesBuf, numSamples);
@@ -84,6 +98,7 @@ namespace audio
 		}
 
 		// misc
+		double sampleRateInv;
 		float fs, fsInv;
 		
 		// noise
@@ -97,18 +112,39 @@ namespace audio
 
 		// parameters
 		PRM octavesPRM, widthPRM;
-		float rateHz, octaves, width;
+		double rateHz, rateBeats, rateBeatsInv;
+		float octaves, width;
+		bool rateType;
 
 	protected:
-		void synthesizePhasor(int numSamples) noexcept
+		void synthesizePhasor(int numSamples, const PlayHeadPos& playHeadPos) noexcept
 		{
-			phasor.inc = rateHz * fsInv;
+			if (!rateType)
+				phasor.inc = rateHz;
+			else
+			{
+				const auto bpMins = playHeadPos.bpm;
+				const auto bpSecs = bpMins / 60.;
+				const auto bpSamples = bpSecs * sampleRateInv;
+					
+				phasor.inc = bpSamples * rateBeatsInv;
+
+				if (playHeadPos.isPlaying)
+				{
+					const auto ppq = playHeadPos.ppqPosition * rateBeatsInv;
+					const auto ppqFloor = std::floor(ppq);
+
+					noiseIdx = static_cast<int>(ppqFloor) & NoiseSizeMax;
+					phasor.phase.phase = ppq - ppqFloor;
+				}
+			}
+
 			for (auto s = 0; s < numSamples; ++s)
 			{
 				const auto phaseInfo = phasor();
 				if (phaseInfo.retrig)
 					noiseIdx = (noiseIdx + 1) & NoiseSizeMax;
-				
+
 				phaseBuffer[s] = static_cast<float>(phaseInfo.phase) + static_cast<float>(noiseIdx);
 			}
 		}
@@ -222,19 +258,29 @@ namespace audio
 				lastSample = curSample;
 			}
 		}
+
+		void controlRange(float* const* samples, int numChannels, int numSamples) noexcept
+		{
+			for(auto ch = 0; ch < numChannels; ++ch)
+				for(auto s = 0; s < numSamples; ++s)
+					if (std::abs(samples[ch][s]) > 1.f)
+						DBG(samples[ch][s] << " > 1");
+					else if (std::abs(samples[ch][s]) == 1.f)
+						DBG(samples[ch][s] << " == 1");
+		}
 	};
 }
 
 /*
 
 todo features:
-	seed
 	temposync rate
+		seed parameter
 
 optimize:
-	-
+	only update temposync rate if changed
 
 bugs:
-	-
+	smooth rate changes
 
 */

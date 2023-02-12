@@ -72,9 +72,10 @@ namespace param
 
 		// LOW LEVEL PARAMS:
 		case PID::RateHz: return "Rate Hz";
+		case PID::RateBeats: return "Rate Beats";
 		case PID::Octaves: return "Octaves";
 		case PID::Width: return "Width";
-		case PID::Seed: return "Seed";
+		case PID::RateType: return "Rate Type";
 
 		default: return "Invalid Parameter Name";
 		}
@@ -1315,9 +1316,10 @@ namespace param
 
 		// LOW LEVEL PARAMS:
 		params.push_back(makeParam(PID::RateHz, state, 2.f, makeRange::withCentre(1.f, 40.f, 2.f), Unit::Hz));
+		params.push_back(makeParam(PID::RateBeats, state, 1.f / 4.f, makeRange::beats(32.f, .5f, false) , Unit::Beats));
 		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::stepped(1.f, 7.f, 1.f), Unit::Octaves));
-		params.push_back(makeParam(PID::Width, state, 0.f));
-		params.push_back(makeParam(PID::Seed, state, 0.f));
+		params.push_back(makeParam(PID::Width, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
+		params.push_back(makeParam(PID::RateType, state, 0.f, makeRange::toggle(), Unit::Power));
 		// LOW LEVEL PARAMS END
 
 		for (auto param : params)
