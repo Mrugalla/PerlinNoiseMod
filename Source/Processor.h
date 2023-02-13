@@ -125,6 +125,6 @@ namespace audio
 
         juce::AudioProcessorEditor* createEditor() override;
 
-        Perlin perlin;
+        Perlin2 perlin;
     };
 }

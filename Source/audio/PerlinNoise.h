@@ -7,6 +7,19 @@
 
 namespace audio
 {
+	inline void generateProceduralNoise(float* noise, int size, unsigned int seed)
+	{
+		std::random_device rd;
+		std::mt19937 mt(rd());
+		std::uniform_real_distribution<float> dist(-.8f, .8f); // compensate spline overshoot
+
+		for (auto s = 0; s < size; ++s, ++seed)
+		{
+			mt.seed(seed);
+			noise[s] = dist(mt);
+		}
+	}
+
 	struct Perlin
 	{
 		using PlayHeadPos = juce::AudioPlayHead::CurrentPositionInfo;
@@ -17,14 +30,14 @@ namespace audio
 		static constexpr int NoiseSize = 1 << NumOctaves;
 		static constexpr int NoiseSizeMax = NoiseSize - 1;
 
+		using NoiseArray = std::array<float, NoiseSize + NoiseOvershoot>;
+		using GainBuffer = std::array<float, NumOctaves + 2>;
+
 		Perlin() :
 			// misc
 			sampleRateInv(1.),
 			fs(1.f),
 			fsInv(1.f),
-			// noise
-			noise(),
-			gainBuffer(),
 			// phase
 			phasor(),
 			phaseBuffer(),
@@ -41,22 +54,6 @@ namespace audio
 			phs(0.f),
 			rateType(false)
 		{
-			unsigned int _seed = 420 * 69 / 666 * 42;
-			std::random_device rd;
-			std::mt19937 mt(rd());
-			std::uniform_real_distribution<float> dist(-.8f, .8f); // compensate spline overshoot
-			
-			for (auto s = 0; s < NoiseSize; ++s, ++_seed)
-			{
-				mt.seed(_seed);
-				noise[s] = dist(mt);
-			}
-
-			for (auto s = 0; s < NoiseOvershoot; ++s)
-				noise[NoiseSize + s] = noise[s];
-
-			for (auto o = 0; o < gainBuffer.size(); ++o)
-				gainBuffer[o] = 1.f / static_cast<float>(1 << o);
 		}
 
 		/* sampleRate, blockSize */
@@ -86,17 +83,17 @@ namespace audio
 			rateType = _rateType;
 		}
 
-		/* samples, numChannels, numSamples, playHeadPos */
-		void operator()(float* const* samples, int numChannels, int numSamples,
-			const PlayHeadPos& playHeadPos) noexcept
+		/* samples, noise, numChannels, numSamples, playHeadPos */
+		void operator()(float* const* samples, const float* noise, const float* gainBuffer,
+			int numChannels, int numSamples, const PlayHeadPos& playHeadPos) noexcept
 		{
 			synthesizePhasor(numSamples, playHeadPos);
 
 			const auto octavesBuf = octavesPRM(octaves, numSamples);
-			processOctaves(samples[0], octavesBuf, numSamples);
+			processOctaves(samples[0], octavesBuf, noise, gainBuffer, numSamples);
 			
 			if(numChannels == 2)
-				processWidth(samples, octavesBuf, numSamples);
+				processWidth(samples, octavesBuf, noise, gainBuffer, numSamples);
 		}
 
 		// misc
@@ -104,8 +101,7 @@ namespace audio
 		float fs, fsInv;
 		
 		// noise
-		std::array<float, NoiseSize + NoiseOvershoot> noise;
-		std::array<float, NumOctaves + 2> gainBuffer;
+		
 		
 		// phase
 		Phasor<double> phasor;
@@ -163,7 +159,8 @@ namespace audio
 				}
 		}
 
-		void processOctaves(float* smpls, const float* octavesBuf, int numSamples) noexcept
+		void processOctaves(float* smpls, const float* octavesBuf,
+			const float* noise, const float* gainBuffer, int numSamples) noexcept
 		{
 			if (!octavesPRM.smoothing)
 			{
@@ -175,7 +172,7 @@ namespace audio
 					for (auto o = 0; o < octFloor; ++o)
 					{
 						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
+						sample += interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[o];
 					}
 
 					smpls[s] = sample;
@@ -193,7 +190,7 @@ namespace audio
 					for (auto s = 0; s < numSamples; ++s)
 					{
 						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-						const auto sample = interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[octFloorInt];
+						const auto sample = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[octFloorInt];
 						smpls[s] += octFrac * sample;
 					}
 
@@ -212,7 +209,7 @@ namespace audio
 					for (auto o = 0; o < octFloor; ++o)
 					{
 						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						sample += interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[o];
+						sample += interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[o];
 					}
 
 					smpls[s] = sample;
@@ -227,7 +224,7 @@ namespace audio
 						const auto octFloorInt = static_cast<int>(octFloor);
 						
 						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-						sample = interpolate::cubicHermiteSpline(noise.data(), phase) * gainBuffer[octFloorInt];
+						sample = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[octFloorInt];
 						smpls[s] += octFrac * sample;
 
 						gain += octFrac * gainBuffer[octFloorInt];
@@ -237,8 +234,9 @@ namespace audio
 				}
 			}
 		}
-
-		void processWidth(float* const* samples, const float* octavesBuf, int numSamples) noexcept
+		
+		void processWidth(float* const* samples, const float* octavesBuf,
+			const float* noise, const float* gainBuffer, int numSamples) noexcept
 		{
 			const auto widthBuf = widthPRM(width, numSamples);
 			if (!widthPRM.smoothing)
@@ -249,7 +247,7 @@ namespace audio
 			else
 				SIMD::add(phaseBuffer.data(), widthBuf, numSamples);
 
-			processOctaves(samples[1], octavesBuf, numSamples);
+			processOctaves(samples[1], octavesBuf, noise, gainBuffer, numSamples);
 		}
 
 		float getPhaseOctaved(float phaseInfo, int o) const noexcept
@@ -283,6 +281,132 @@ namespace audio
 						DBG(samples[ch][s] << " == 1");
 		}
 	};
+
+	struct Perlin2
+	{
+		using AudioBuffer = juce::AudioBuffer<float>;
+
+		Perlin2() :
+			// noise
+			noise(),
+			gainBuffer(),
+			// perlin
+			prevBuffer(),
+			perlins(),
+			perlinIndex(0),
+			// parameters
+			rateBeats(-1.),
+			// crossfade
+			phaseBuffer(),
+			phase(0.f),
+			inc(0.f),
+			crossfading(false)
+		{
+			generateProceduralNoise(noise.data(), Perlin::NoiseSize, 420 * 69 / 666 * 42);
+			
+			for (auto s = 0; s < Perlin::NoiseOvershoot; ++s)
+				noise[Perlin::NoiseSize + s] = noise[s];
+
+			for (auto o = 0; o < gainBuffer.size(); ++o)
+				gainBuffer[o] = 1.f / static_cast<float>(1 << o);
+		}
+
+		void prepare(float sampleRate, int blockSize)
+		{
+			prevBuffer.setSize(2, blockSize, false, false, false);
+			for (auto& perlin : perlins)
+				perlin.prepare(sampleRate, blockSize);
+			inc = msInInc(420.f, sampleRate);
+			phaseBuffer.resize(blockSize);
+		}
+
+		void setParameters(double _rateHz, double _rateBeats, float _octaves, float _width, float _phs, bool _rateType) noexcept
+		{
+			if (rateBeats != _rateBeats && !crossfading)
+			{
+				perlins[perlinIndex].setParameters(_rateHz, rateBeats, _octaves, _width, _phs, _rateType);
+				rateBeats = _rateBeats;
+				perlinIndex = 1 - perlinIndex;
+				perlins[perlinIndex].setParameters(_rateHz, rateBeats, _octaves, _width, _phs, _rateType);
+				crossfading = true;
+				phase = 0.;
+			}
+			else
+				perlins[perlinIndex].setParameters(_rateHz, rateBeats, _octaves, _width, _phs, _rateType);
+		}
+
+		void operator()(float* const* samples, int numChannels, int numSamples,
+			const PlayHeadPos& playHeadPos) noexcept
+		{
+			perlins[perlinIndex]
+			(
+				samples,
+				noise.data(),
+				gainBuffer.data(),
+				numChannels,
+				numSamples,
+				playHeadPos
+			);
+
+			if (crossfading)
+			{
+				auto prevSamples = prevBuffer.getArrayOfWritePointers();
+				perlins[1 - perlinIndex]
+				(
+					prevSamples,
+					noise.data(),
+					gainBuffer.data(),
+					numChannels,
+					numSamples,
+					playHeadPos
+				);
+				
+				for (auto s = 0; s < numSamples; ++s)
+				{
+					phaseBuffer[s] = phase;
+					phase += inc;
+					if (phase > 1.f)
+					{
+						crossfading = false;
+						phase = 1.f;
+					}
+				}
+				
+				for (auto ch = 0; ch < numChannels; ++ch)
+				{
+					auto smpls = samples[ch];
+					const auto prevSmpls = prevSamples[ch];
+					
+					for (auto s = 0; s < numSamples; ++s)
+					{
+						const auto prev = prevSmpls[s];
+						const auto cur = smpls[s];
+						
+						const auto phs = phaseBuffer[s];
+						const auto phsPi = phs * Pi;
+						const auto phsPrev = std::cos(phsPi) + 1.f;
+						const auto phsCur = std::cos(phsPi + Pi) + 1.f;
+
+						smpls[s] = (prev * phsPrev + cur * phsCur) * .5f;
+					}
+				}
+			}
+		}
+		
+		// noise
+		Perlin::NoiseArray noise;
+		Perlin::GainBuffer gainBuffer;
+		// perlin
+		AudioBuffer prevBuffer;
+		std::array<Perlin, 2> perlins;
+		int perlinIndex;
+		// parameters
+		double rateBeats;
+		// crossfade
+		std::vector<float> phaseBuffer;
+		float phase, inc;
+		bool crossfading;
+	};
 }
 
 /*
@@ -291,12 +415,10 @@ todo features:
 	-
 
 optimize:
+	memory used for crossfade reduced
 	fixed blocksize
 
 bugs:
-	temposync
-		smooth rate changes
-			1: temporarily lp the output
-			2: crossfade 2 perlinNoise instances
+	jumps in project position at temposync rate = discontinuity
 
 */
