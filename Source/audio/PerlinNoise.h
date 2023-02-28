@@ -152,9 +152,9 @@ namespace audio
 					for (auto o = 0; o < octFloor; ++o)
 					{
 						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase);
-						sample += smplLerp + smoothBuf[s] * (smplSmooth - smplLerp) * gainBuffer[o];
+						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[o];
+						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[o];
+						sample += smplLerp + smoothBuf[s] * (smplSmooth - smplLerp);
 					}
 
 					smpls[s] = sample;
@@ -172,9 +172,9 @@ namespace audio
 					for (auto s = 0; s < numSamples; ++s)
 					{
 						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase);
-						smpls[s] += octFrac * (smplLerp + smoothBuf[s] * (smplSmooth - smplLerp)) * gainBuffer[octFloorInt];
+						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[octFloorInt];
+						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[octFloorInt];
+						smpls[s] += octFrac * (smplLerp + smoothBuf[s] * (smplSmooth - smplLerp));
 					}
 
 					gain += octFrac * gainBuffer[octFloorInt];
@@ -192,9 +192,9 @@ namespace audio
 					for (auto o = 0; o < octFloor; ++o)
 					{
 						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase);
-						sample += (smplLerp + smoothBuf[s] * (smplSmooth - smplLerp)) * gainBuffer[o];
+						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[o];
+						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[o];
+						sample += (smplLerp + smoothBuf[s] * (smplSmooth - smplLerp));
 					}
 
 					smpls[s] = sample;
@@ -209,9 +209,9 @@ namespace audio
 						const auto octFloorInt = static_cast<int>(octFloor);
 						
 						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase);
-						smpls[s] += octFrac * (smplLerp + smoothBuf[s] * (smplSmooth - smplLerp)) * gainBuffer[octFloorInt];
+						const auto smplLerp = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[octFloorInt];
+						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[octFloorInt];
+						smpls[s] += octFrac * (smplLerp + smoothBuf[s] * (smplSmooth - smplLerp));
 
 						gain += octFrac * gainBuffer[octFloorInt];
 					}
@@ -493,7 +493,6 @@ optimize:
 	make interpolator that returns both nearest neighbour and spline at the same time
 
 bugs:
-	octaves is currently grainy as fuck
 	jumps in project position in temposync cause discontinuity
 
 PERLIN NOISE PLUGIN:
