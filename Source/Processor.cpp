@@ -487,6 +487,7 @@ namespace audio
 		auto width = params[PID::Width]->getValMod();
 		auto rateType = params[PID::RateType]->getValMod() > .5f;
 		auto phase = params[PID::RatePhase]->getValModDenorm();
+		auto smooth = params[PID::Smooth]->getValMod();
 		
         perlin.setParameters
         (
@@ -495,6 +496,7 @@ namespace audio
             oct,
             width,
             phase,
+            smooth,
             rateType
         );
 
@@ -519,11 +521,19 @@ namespace audio
 
     void Processor::savePatch()
     {
+        auto perlinSeed = perlin.seed.load();
+        state.set("perlin", "seed", perlinSeed);
         ProcessorBackEnd::savePatch();
     }
 
     void Processor::loadPatch()
     {
+        const auto perlinSeedVar = state.get("perlin", "seed");
+        if (perlinSeedVar)
+        {
+            const auto perlinSeed = static_cast<int>(*perlinSeedVar);
+			perlin.setSeed(perlinSeed);
+        }
         ProcessorBackEnd::loadPatch();
         forcePrepareToPlay();
     }

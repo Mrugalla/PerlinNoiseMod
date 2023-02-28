@@ -132,7 +132,8 @@ namespace gui
 
 			makeSymbolButton(swapParamWithModDepth, ButtonSymbol::SwapParamModDepth);
 		}
-
+		
+#if PPDHasPatchBrowser
 		addAndMakeVisible(saveModPatch);
 		{
 			saveModPatch.onClick.push_back([](Button& btn, const Mouse&)
@@ -290,6 +291,7 @@ namespace gui
 
 			makeSymbolButton(removeCurModPatch, ButtonSymbol::Remove);
 		}
+#endif
 
 		makeParameter(macro, PID::Macro, "Macro", false);
 

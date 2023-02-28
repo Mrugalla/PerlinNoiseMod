@@ -68,6 +68,7 @@ namespace param
 		Width,
 		RateType,
 		RatePhase,
+		Smooth,
 
 		NumParams
 	};

@@ -1,7 +1,5 @@
-Welcome to THIS PLUGIN!
-
-This plugin still needs an intro text lol.
-Pls inform me if I forgot to write one!
+Welcome to the perlin noise synthesizer.
+It just synthesizes perlin noise.
 
 Hope u enjoy :3
 Florian

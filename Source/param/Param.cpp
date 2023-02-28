@@ -77,6 +77,7 @@ namespace param
 		case PID::Width: return "Width";
 		case PID::RateType: return "Rate Type";
 		case PID::RatePhase: return "Rate Phase";
+		case PID::Smooth: return "Smooth";
 
 		default: return "Invalid Parameter Name";
 		}
@@ -155,6 +156,13 @@ namespace param
 		case PID::Power: return "Bypass the plugin with this parameter.";
 
 		// LOW LEVEL PARAMS:
+		case PID::RateHz: return "The rate of the perlin noise mod in hz.";
+		case PID::RateBeats: return "The rate of the perlin noise mod in beats.";
+		case PID::Octaves: return "More octaves add complexity to the signal.";
+		case PID::Width: return "The width of the perlin noise mod.";
+		case PID::RateType: return "Free running rate in hz or temposync in beats.";
+		case PID::RatePhase: return "The phase of the perlin noise mod.";
+		case PID::Smooth: return "The perlin noise mod's smoothness.";
 
 		default: return "Invalid Tooltip.";
 		}
@@ -1322,6 +1330,7 @@ namespace param
 		params.push_back(makeParam(PID::Width, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
 		params.push_back(makeParam(PID::RateType, state, 0.f, makeRange::toggle(), Unit::Power));
 		params.push_back(makeParam(PID::RatePhase, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
+		params.push_back(makeParam(PID::Smooth, state, 1.f));
 		// LOW LEVEL PARAMS END
 
 		for (auto param : params)

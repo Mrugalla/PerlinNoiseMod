@@ -16,7 +16,9 @@ namespace gui
             oct(u),
             width(u),
             phase(u),
-            rateType(u)
+            smooth(u),
+            rateType(u),
+            seed(u, "Generate a new random seed for the procedural perlin noise mod.")
         {
             makeParameter(rateHz, PID::RateHz, "Rate");
             addAndMakeVisible(rateHz);
@@ -24,7 +26,7 @@ namespace gui
 			makeParameter(rateBeats, PID::RateBeats, "Rate");
 			addAndMakeVisible(rateBeats);
 
-			makeParameter(oct, PID::Octaves, "Octaves");
+			makeParameter(oct, PID::Octaves, "Oct");
 			addAndMakeVisible(oct);
 
 			makeParameter(width, PID::Width, "Width");
@@ -32,14 +34,27 @@ namespace gui
 
 			makeParameter(phase, PID::RatePhase, "Phase");
 			addAndMakeVisible(phase);
+
+			makeParameter(smooth, PID::Smooth, "Smooth");
+			addAndMakeVisible(smooth);
             
 			makeParameter(rateType, PID::RateType, ButtonSymbol::TempoSync);
 			addAndMakeVisible(rateType);
             
+            makeTextButton(seed, "Seed", false);
+            addAndMakeVisible(seed);
+
+            seed.onClick.push_back([](Button& btn, const Mouse&)
+            {
+                auto& u = btn.utils;
+                Random rand;
+                u.audioProcessor.perlin.setSeed(rand.nextInt());
+            });
+
             layout.init
             (
-                { 1, 13, 13, 13, 13, 1 },
-                { 1, 13, 3, 1 }
+                { 1, 3, 8, 5, 5, 5, 5, 1 },
+                { 1, 8, 1 }
             );
 
             startTimerHz(24);
@@ -53,13 +68,15 @@ namespace gui
         {
             layout.resized();
 
-            layout.place(rateHz, 1, 1, 1, 1, false);
-            layout.place(rateBeats, 1, 1, 1, 1, false);
-			layout.place(oct, 2, 1, 1, 1, false);
-			layout.place(width, 3, 1, 1, 1, false);
-			layout.place(phase, 4, 1, 1, 1, false);
+            layout.place(rateHz, 2, 1, 1, 1, false);
+            layout.place(rateBeats, 2, 1, 1, 1, false);
+			layout.place(oct, 3, 1, 1, 1, false);
+			layout.place(width, 4, 1, 1, 1, false);
+			layout.place(phase, 5, 1, 1, 1, false);
+			layout.place(smooth, 6, 1, 1, 1, false);
 			
-            layout.place(rateType, 1, 2, 1, 1, true);
+            layout.place(seed, 1, 1.f, 1, .333f, true);
+            layout.place(rateType, 1, 1.333f, 1, .333f, true);
         }
 
         void timerCallback() override
@@ -70,7 +87,7 @@ namespace gui
         }
 
     protected:
-		Knob rateHz, rateBeats, oct, width, phase;
-        Button rateType;
+		Knob rateHz, rateBeats, oct, width, phase, smooth;
+        Button rateType, seed;
     };
 }

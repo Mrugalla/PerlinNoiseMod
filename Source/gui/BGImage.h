@@ -1,5 +1,6 @@
 #pragma once
 #include "Shared.h"
+#include "../audio/PerlinNoise.h"
 
 namespace gui
 {
@@ -242,4 +243,59 @@ namespace gui
         
         bgImage = bgImage.rescaled(width, height, Graphics::mediumResamplingQuality);
 	}
+
+    inline void makePerlinTerrain(Image& bgImage, int width, int height)
+    {
+        bgImage = Image(Image::ARGB, width, height, true);
+        Graphics g{ bgImage };
+        
+        audio::Perlin2::AudioBuffer buffer(1, width);
+        audio::PlayHeadPos playHeadPos;
+        auto samples = buffer.getArrayOfWritePointers();
+        auto smpls = samples[0];
+
+		const auto widthF = static_cast<float>(width);
+        const auto heightF = static_cast<float>(height);
+        Random rand;
+        
+        audio::Perlin2 perlin;
+        perlin.prepare(widthF, width);
+
+        auto octaves = 1.f + rand.nextFloat() * 6.f;
+
+        const auto numIts = 5;
+		const auto numItsF = static_cast<float>(numIts);
+        for(auto i = 0; i < numIts; ++i)
+        {
+            const auto iF = static_cast<float>(i);
+            const auto iR = iF / numItsF;
+            
+            const auto rateHz = 2. + iR * 13.;
+            
+            perlin.setSeed(rand.nextInt());
+            perlin.setParameters
+            (
+                rateHz,
+                1.,
+                octaves,
+                0.f,
+                0.f,
+                1.f,
+                false
+            );
+            perlin(samples, 1, width, playHeadPos);
+            
+            const auto brightness = .12f + iR * .2f;
+            g.setColour(Colours::c(ColourID::Hover).withAlpha(1.f).withBrightness(brightness));
+
+            const auto xStep = 1;
+			const auto xStepF = static_cast<float>(xStep);
+            for (auto x = 0; x < width; x += xStep)
+            {
+                smpls[x] = (smpls[x] + 1.f) * .5f;
+                const auto h = smpls[x] * heightF * (.27f - iR * .20f);
+                g.fillRect(static_cast<float>(x), heightF - h, xStepF, h);
+            }
+        }
+    }
 }

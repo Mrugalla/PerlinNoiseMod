@@ -60,7 +60,7 @@ namespace gui
         layout.init
         (
             { 2, 7 },
-            { 2, 13, 1 }
+            { 3, 13, 2 }
         );
 		
         addAndMakeVisible(tooltip);
@@ -238,7 +238,7 @@ namespace gui
         if (width == 0 || height == 0)
             return;
         
-        makeBGBlurredCurves(bgImage, utils.thicc, width, height);
+        makePerlinTerrain(bgImage, width, height);
 
         if (props != nullptr)
         {
