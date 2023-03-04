@@ -77,7 +77,7 @@ namespace param
 		case PID::Width: return "Width";
 		case PID::RateType: return "Rate Type";
 		case PID::RatePhase: return "Rate Phase";
-		case PID::Smooth: return "Smooth";
+		case PID::Shape: return "Shape";
 
 		default: return "Invalid Parameter Name";
 		}
@@ -162,7 +162,7 @@ namespace param
 		case PID::Width: return "The width of the perlin noise mod.";
 		case PID::RateType: return "Free running rate in hz or temposync in beats.";
 		case PID::RatePhase: return "The phase of the perlin noise mod.";
-		case PID::Smooth: return "The perlin noise mod's smoothness.";
+		case PID::Shape: return "The perlin noise mod's shape options.";
 
 		default: return "Invalid Tooltip.";
 		}
@@ -1324,13 +1324,32 @@ namespace param
 		}
 
 		// LOW LEVEL PARAMS:
+		auto valToStrShape = [](float v)
+		{
+			return v < .5f ? String("Steppy") :
+				v < 1.5f ? String("Lerp") :
+				String("Round");
+		};
+		auto strToValShape = [](const String& str)
+		{
+			if(str == "Steppy")
+				return 0.f;
+			else if (str == "Lerp")
+				return 1.f;
+			else if (str == "Round")
+				return 2.f;
+			
+			auto parse = strToVal::parse();
+			return parse(str, 2.f);
+		};
+
 		params.push_back(makeParam(PID::RateHz, state, 2.f, makeRange::withCentre(1.f, 40.f, 2.f), Unit::Hz));
 		params.push_back(makeParam(PID::RateBeats, state, 1.f / 4.f, makeRange::beats(32.f, .5f, false) , Unit::Beats));
 		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::stepped(1.f, 7.f, 1.f), Unit::Octaves));
 		params.push_back(makeParam(PID::Width, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
 		params.push_back(makeParam(PID::RateType, state, 0.f, makeRange::toggle(), Unit::Power));
 		params.push_back(makeParam(PID::RatePhase, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
-		params.push_back(makeParam(PID::Smooth, state, 1.f));
+		params.push_back(makeParam(PID::Shape, state, 2.f, makeRange::stepped(0.f, 2.f, 1.f), valToStrShape, strToValShape));
 		// LOW LEVEL PARAMS END
 
 		for (auto param : params)

@@ -16,7 +16,7 @@ namespace gui
             oct(u),
             width(u),
             phase(u),
-            smooth(u),
+            shape(u),
             rateType(u),
             seed(u, "Generate a new random seed for the procedural perlin noise mod.")
         {
@@ -35,8 +35,8 @@ namespace gui
 			makeParameter(phase, PID::RatePhase, "Phase");
 			addAndMakeVisible(phase);
 
-			makeParameter(smooth, PID::Smooth, "Smooth");
-			addAndMakeVisible(smooth);
+			makeParameter(shape, PID::Shape, "Shape");
+			addAndMakeVisible(shape);
             
 			makeParameter(rateType, PID::RateType, ButtonSymbol::TempoSync);
 			addAndMakeVisible(rateType);
@@ -73,7 +73,7 @@ namespace gui
 			layout.place(oct, 3, 1, 1, 1, false);
 			layout.place(width, 4, 1, 1, 1, false);
 			layout.place(phase, 5, 1, 1, 1, false);
-			layout.place(smooth, 6, 1, 1, 1, false);
+			layout.place(shape, 6, 1, 1, 1, false);
 			
             layout.place(seed, 1, 1.f, 1, .333f, true);
             layout.place(rateType, 1, 1.333f, 1, .333f, true);
@@ -87,7 +87,7 @@ namespace gui
         }
 
     protected:
-		Knob rateHz, rateBeats, oct, width, phase, smooth;
+		Knob rateHz, rateBeats, oct, width, phase, shape;
         Button rateType, seed;
     };
 }

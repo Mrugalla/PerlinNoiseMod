@@ -24,6 +24,11 @@ namespace audio
 
 	struct Perlin
 	{
+		enum class Shape
+		{
+			NN, Lerp, Spline, NumShapes
+		};
+
 		using PlayHeadPos = juce::AudioPlayHead::CurrentPositionInfo;
 
 		static constexpr int NumOctaves = 7;
@@ -88,19 +93,19 @@ namespace audio
 			}
 		}
 
-		/* samples, noise, gainBuffer, octavesBuffer, phsBuf, widthBuf, smoothBuf,
+		/* samples, noise, gainBuffer, octavesBuffer, phsBuf, widthBuf, shape,
 		numChannels, numSamples, octavesSmoothing, phsSmoothing, widthSmoothing */
 		void operator()(float* const* samples, const float* noise, const float* gainBuffer,
-			const float* octavesBuf, const float* phsBuf, const float* widthBuf, const float* smoothBuf,
+			const float* octavesBuf, const float* phsBuf, const float* widthBuf, Shape shape,
 			int numChannels, int numSamples,
 			bool octavesSmoothing, bool phsSmoothing, bool widthSmoothing) noexcept
 		{
 			synthesizePhasor(phsBuf, numSamples, phsSmoothing);
 			
-			processOctaves(samples[0], octavesBuf, noise, gainBuffer, smoothBuf, numSamples, octavesSmoothing);
+			processOctaves(samples[0], octavesBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing);
 			
 			if(numChannels == 2)
-				processWidth(samples, octavesBuf, widthBuf, noise, gainBuffer, smoothBuf, numSamples, octavesSmoothing, widthSmoothing);
+				processWidth(samples, octavesBuf, widthBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing, widthSmoothing);
 		}
 
 		// misc
@@ -139,90 +144,148 @@ namespace audio
 		}
 
 		void processOctaves(float* smpls, const float* octavesBuf,
-			const float* noise, const float* gainBuffer, const float* smoothBuf, int numSamples,
+			const float* noise, const float* gainBuffer, Shape shape, int numSamples,
 			bool octavesSmoothing) noexcept
 		{
 			if (!octavesSmoothing)
+				processOctavesNotSmoothing(smpls, noise, gainBuffer, shape, numSamples);
+			else
+				processOctavesSmoothing(smpls, octavesBuf, noise, gainBuffer, shape, numSamples);
+		}
+
+		static constexpr float LerpPhaseOffset = 1.5f;
+		
+		void processOctavesNotSmoothing(float* smpls, const float* noise,
+			const float* gainBuffer, Shape shape, int numSamples) noexcept
+		{
+			const auto octFloor = std::floor(octaves);
+
+			for (auto s = 0; s < numSamples; ++s)
 			{
-				const auto octFloor = std::floor(octaves);
+				auto sample = 0.f;
+				for (auto o = 0; o < octFloor; ++o)
+				{
+					const auto phase = getPhaseOctaved(phaseBuffer[s], o);
+
+					float smpl;
+					switch (shape)
+					{
+					case Shape::NN:
+						smpl = noise[static_cast<int>(std::round(phase)) + 1];
+						break;
+					case Shape::Lerp:
+						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
+						break;
+					default: // Spline
+						smpl = interpolate::cubicHermiteSpline(noise, phase);
+						break;
+					}
+					sample += smpl * gainBuffer[o];
+				}
+
+				smpls[s] = sample;
+			}
+
+			auto gain = 0.f;
+			for (auto o = 0; o < octFloor; ++o)
+				gain += gainBuffer[o];
+
+			const auto octFrac = octaves - octFloor;
+			if (octFrac != 0.f)
+			{
+				const auto octFloorInt = static_cast<int>(octFloor);
 
 				for (auto s = 0; s < numSamples; ++s)
 				{
-					auto sample = 0.f;
-					for (auto o = 0; o < octFloor; ++o)
-					{
-						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						const auto smplNN = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[o];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[o];
-						sample += smplNN + smoothBuf[s] * (smplSmooth - smplNN);
-					}
+					const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
 
-					smpls[s] = sample;
+					float smpl;
+					switch (shape)
+					{
+					case Shape::NN:
+						smpl = noise[static_cast<int>(std::round(phase)) + 1];
+						break;
+					case Shape::Lerp:
+						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
+						break;
+					default: // Spline
+						smpl = interpolate::cubicHermiteSpline(noise, phase);
+						break;
+					}
+					smpls[s] += octFrac * smpl * gainBuffer[octFloorInt];;
 				}
+
+				gain += octFrac * gainBuffer[octFloorInt];
+			}
+
+			SIMD::multiply(smpls, 1.f / std::sqrt(gain), numSamples);
+		}
+		
+		void processOctavesSmoothing(float* smpls, const float* octavesBuf,
+			const float* noise, const float* gainBuffer, Shape shape, int numSamples) noexcept
+		{
+			for (auto s = 0; s < numSamples; ++s)
+			{
+				const auto octFloor = std::floor(octavesBuf[s]);
+
+				auto sample = 0.f;
+				for (auto o = 0; o < octFloor; ++o)
+				{
+					const auto phase = getPhaseOctaved(phaseBuffer[s], o);
+
+					float smpl;
+					switch (shape)
+					{
+					case Shape::NN:
+						smpl = noise[static_cast<int>(std::round(phase)) + 1];
+						break;
+					case Shape::Lerp:
+						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
+						break;
+					default: // Spline
+						smpl = interpolate::cubicHermiteSpline(noise, phase);
+						break;
+					}
+					sample += smpl * gainBuffer[o];
+				}
+
+				smpls[s] = sample;
 
 				auto gain = 0.f;
 				for (auto o = 0; o < octFloor; ++o)
 					gain += gainBuffer[o];
 
-				const auto octFrac = octaves - octFloor;
+				const auto octFrac = octavesBuf[s] - octFloor;
 				if (octFrac != 0.f)
 				{
 					const auto octFloorInt = static_cast<int>(octFloor);
 
-					for (auto s = 0; s < numSamples; ++s)
+					const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
+
+					float smpl;
+					switch (shape)
 					{
-						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-						const auto smplNN = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[octFloorInt];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[octFloorInt];
-						smpls[s] += octFrac * (smplNN + smoothBuf[s] * (smplSmooth - smplNN));
+					case Shape::NN:
+						smpl = noise[static_cast<int>(std::round(phase)) + 1];
+						break;
+					case Shape::Lerp:
+						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
+						break;
+					default: // Spline
+						smpl = interpolate::cubicHermiteSpline(noise, phase);
+						break;
 					}
+					smpls[s] += octFrac * smpl * gainBuffer[octFloorInt];
 
 					gain += octFrac * gainBuffer[octFloorInt];
 				}
-				
-				SIMD::multiply(smpls, 1.f / std::sqrt(gain), numSamples);
-			}
-			else
-			{
-				for (auto s = 0; s < numSamples; ++s)
-				{
-					const auto octFloor = std::floor(octavesBuf[s]);
 
-					auto sample = 0.f;
-					for (auto o = 0; o < octFloor; ++o)
-					{
-						const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-						const auto smplNN = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[o];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[o];
-						sample += (smplNN + smoothBuf[s] * (smplSmooth - smplNN));
-					}
-
-					smpls[s] = sample;
-
-					auto gain = 0.f;
-					for (auto o = 0; o < octFloor; ++o)
-						gain += gainBuffer[o];
-
-					const auto octFrac = octavesBuf[s] - octFloor;
-					if (octFrac != 0.f)
-					{
-						const auto octFloorInt = static_cast<int>(octFloor);
-						
-						const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-						const auto smplNN = noise[static_cast<int>(std::round(phase)) + 1] * gainBuffer[octFloorInt];
-						const auto smplSmooth = interpolate::cubicHermiteSpline(noise, phase) * gainBuffer[octFloorInt];
-						smpls[s] += octFrac * (smplNN + smoothBuf[s] * (smplSmooth - smplNN));
-
-						gain += octFrac * gainBuffer[octFloorInt];
-					}
-
-					smpls[s] /= std::sqrt(gain);
-				}
+				smpls[s] /= std::sqrt(gain);
 			}
 		}
-		
+
 		void processWidth(float* const* samples, const float* octavesBuf,
-			const float* widthBuf, const float* noise, const float* gainBuffer, const float* smoothBuf,
+			const float* widthBuf, const float* noise, const float* gainBuffer, Shape shape,
 			int numSamples, bool octavesSmoothing, bool widthSmoothing) noexcept
 		{
 			if (!widthSmoothing)
@@ -233,7 +296,7 @@ namespace audio
 			else
 				SIMD::add(phaseBuffer.data(), widthBuf, numSamples);
 
-			processOctaves(samples[1], octavesBuf, noise, gainBuffer, smoothBuf, numSamples, octavesSmoothing);
+			processOctaves(samples[1], octavesBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing);
 		}
 
 		float getPhaseOctaved(float phaseInfo, int o) const noexcept
@@ -271,6 +334,7 @@ namespace audio
 	struct Perlin2
 	{
 		using AudioBuffer = juce::AudioBuffer<float>;
+		using Shape = Perlin::Shape;
 
 		Perlin2() :
 			// misc
@@ -286,7 +350,6 @@ namespace audio
 			octavesPRM(1.f),
 			widthPRM(0.f),
 			phsPRM(0.f),
-			smoothPRM(1.f),
 			//
 			rateHz(0.),
 			rateBeats(-1.),
@@ -294,6 +357,7 @@ namespace audio
 			octaves(1.f),
 			width(0.f),
 			phs(0.f),
+			shape(Shape::Spline),
 			temposync(false),
 			// crossfade
 			xFadeBuffer(),
@@ -332,16 +396,15 @@ namespace audio
 			octavesPRM.prepare(fs, blockSize, 10.f);
 			widthPRM.prepare(fs, blockSize, 20.f);
 			phsPRM.prepare(fs, blockSize, 20.f);
-			smoothPRM.prepare(fs, blockSize, 10.f);
 		}
 
-		void setParameters(double _rateHz, double _rateBeats, float _octaves, float _width, float _phs, float _smooth, bool _temposync) noexcept
+		void setParameters(double _rateHz, double _rateBeats, float _octaves, float _width, float _phs, Shape _shape, bool _temposync) noexcept
 		{
 			rateHz = _rateHz * sampleRateInv;
 			octaves = _octaves;
 			width = _width;
 			phs = _phs;
-			smooth = _smooth;
+			shape = _shape;
 			temposync = _temposync;
 			
 			if (rateBeats != _rateBeats && !crossfading)
@@ -364,9 +427,6 @@ namespace audio
 			const auto octavesBuf = octavesPRM(octaves, numSamples);
 			const auto phsBuf = phsPRM(phs, numSamples);
 			const auto widthBuf = widthPRM(width, numSamples);
-			auto smoothBuf = smoothPRM(smooth, numSamples);
-			if(!smoothPRM.smoothing)
-				SIMD::fill(smoothBuf, smooth, numSamples);
 			
 			if (!temposync)
 				perlins[perlinIndex].processRateFree(rateHz);
@@ -398,7 +458,7 @@ namespace audio
 				octavesBuf,
 				phsBuf,
 				widthBuf,
-				smoothBuf,
+				shape,
 				numChannels,
 				numSamples,
 				octavesPRM.smoothing,
@@ -417,7 +477,7 @@ namespace audio
 					octavesBuf,
 					phsBuf,
 					widthBuf,
-					smoothBuf,
+					shape,
 					numChannels,
 					numSamples,
 					octavesPRM.smoothing,
@@ -467,9 +527,10 @@ namespace audio
 		std::array<Perlin, 2> perlins;
 		int perlinIndex;
 		// parameters
-		PRM octavesPRM, widthPRM, phsPRM, smoothPRM;
+		PRM octavesPRM, widthPRM, phsPRM;
 		double rateHz, rateBeats, rateBeatsInv;
-		float octaves, width, phs, smooth;
+		float octaves, width, phs;
+		Shape shape;
 		bool temposync;
 		// crossfade
 		std::vector<float> xFadeBuffer;
@@ -484,17 +545,20 @@ namespace audio
 
 /*
 
-PERLIN NOISE MOD:
+MODULATOR >>>
 
-todo features:
-	interpolation selection (steppy (next neighbor), lerp (linear), smooth (cubic spline))
-
+features:
+	-
+	
 bugs:
 	jumps in project position in temposync cause discontinuity
 
-PERLIN NOISE PLUGIN:
+optimize:
+    -
 
-todo features:
+PLUGIN >>>
+
+features:
 	omnidirectional/bidirectional switch
 	midi cc out
 

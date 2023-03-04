@@ -487,7 +487,7 @@ namespace audio
 		auto width = params[PID::Width]->getValMod();
 		auto rateType = params[PID::RateType]->getValMod() > .5f;
 		auto phase = params[PID::RatePhase]->getValModDenorm();
-		auto smooth = params[PID::Smooth]->getValMod();
+		auto shape = static_cast<int>(std::round(params[PID::Shape]->getValModDenorm()));
 		
         perlin.setParameters
         (
@@ -496,7 +496,7 @@ namespace audio
             oct,
             width,
             phase,
-            smooth,
+            static_cast<Perlin::Shape>(shape),
             rateType
         );
 

@@ -280,7 +280,7 @@ namespace gui
                 octaves,
                 0.f,
                 0.f,
-                1.f,
+                audio::Perlin::Shape::Spline,
                 false
             );
             perlin(samples, 1, width, playHeadPos);
