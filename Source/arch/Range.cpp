@@ -175,7 +175,7 @@ namespace makeRange
 		const auto numValsX = numValuesInv * EpsInv;
 		const auto normValsY = numValuesF * Eps;
 
-		return
+		Range range
 		{
 			table.front(), table.back(),
 			[table, normValsY](float, float, float normalized)
@@ -190,10 +190,19 @@ namespace makeRange
 						return static_cast<float>(i) * numValsX;
 				return 0.f;
 			},
-			[](float start, float end, float denormalized)
+			[table, numValsX](float start, float end, float denormalized)
 			{
-				return juce::jlimit(start, end, denormalized);
+				auto closest = table.front();
+				for (auto i = 0; i < table.size(); ++i)
+				{
+					const auto diff = std::abs(table[i] - denormalized);
+					if (diff < std::abs(closest - denormalized))
+						closest = table[i];
+				}
+				return juce::jlimit(start, end, closest);
 			}
 		};
+		
+		return range;
 	}
 }
