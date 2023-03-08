@@ -14,6 +14,7 @@ namespace gui
 		Oscilloscope(Utils& u, String&& _tooltip, const Oscope& _oscope) :
 			Comp(u, _tooltip, CursorType::Default),
 			Timer(),
+			lineCID(ColourID::Txt),
 			oscope(_oscope),
 			curve(),
 			bipolar(true)
@@ -27,16 +28,13 @@ namespace gui
 			bounds = getLocalBounds().toFloat().reduced(thicc);
 
 			curve = Path();
-			curve.preallocateSpace(static_cast<int>(bounds.getWidth()) + 1);
+			curve.preallocateSpace(static_cast<int>(bounds.getWidth() / thicc) + 1);
 		}
 
 		void paint(Graphics& g) override
 		{
+			curve.clear();
 			const auto thicc = utils.thicc;
-			Stroke stroke(thicc, Stroke::JointStyle::beveled, Stroke::EndCapStyle::rounded);
-			
-			g.setColour(Colours::c(ColourID::Darken));
-			g.fillRoundedRectangle(bounds, thicc);
 			
 			const auto data = oscope.data();
 			const auto size = oscope.windowLength();
@@ -44,25 +42,52 @@ namespace gui
 			const auto beatLength = oscope.getBeatLength();
 			const auto w = bounds.getWidth();
 			const auto h = bounds.getHeight();
-			const auto xScale = w / std::min(beatLength, sizeF);
-			const auto bipolarVal = bipolar ? 1.f : 0.f;
-			const auto yScale = h - bipolarVal * (h * .5f - h);
+			const auto xScale = w / std::max(beatLength, sizeF);
 			const auto xScaleInv = 1.f / xScale;
 			const auto xOff = bounds.getX();
-			const auto yOff = bounds.getY() + yScale;
 			
-			curve.clear();
-			auto y = yOff - data[0] * yScale;
-			curve.startNewSubPath(xOff, y);
-			for (auto i = 1.f; i <= w; ++i)
+			if (!bipolar)
 			{
-				const auto x = xOff + i;
-				const auto idx = static_cast<int>(i * xScaleInv);
-				y = yOff - data[idx] * yScale;
-				curve.lineTo(x, y);
+				auto value = data[0];
+				auto y = h - value * h;
+				curve.startNewSubPath(xOff, y);
+				for (auto i = 1.f; i <= w; i += thicc)
+				{
+					const auto x = xOff + i;
+					const auto idx = static_cast<int>(i * xScaleInv);
+					value = data[idx];
+					y = h - value * h;
+					curve.lineTo(x, y);
+				}
 			}
+			else
+			{
+				const auto heightHalf = h * .5f;
+				const auto centreY = bounds.getY() + heightHalf;
+				
+				{
+					g.setColour(Colours::c(ColourID::Hover));
+					const auto y = static_cast<int>(centreY);
+					const auto inc = static_cast<int>(thicc * 3.f);
+					for (auto x = static_cast<int>(bounds.getX()); x < bounds.getRight(); x += inc)
+						g.fillRect(x,y,1,1);
+				}
 
-			g.setColour(Colours::c(ColourID::Txt));
+				auto value = data[0];
+				auto y = centreY - value * heightHalf;
+				curve.startNewSubPath(xOff, y);
+				for (auto i = 1.f; i <= w; i += thicc)
+				{
+					const auto x = xOff + i;
+					const auto idx = static_cast<int>(i * xScaleInv);
+					value = data[idx];
+					y = centreY - value * heightHalf;
+					curve.lineTo(x, y);
+				}
+			}
+			
+			Stroke stroke(thicc, Stroke::JointStyle::beveled, Stroke::EndCapStyle::rounded);
+			g.setColour(Colours::c(lineCID));
 			g.strokePath(curve, stroke);
 		}
 
@@ -71,6 +96,7 @@ namespace gui
 			repaint();
 		}
 
+		ColourID lineCID;
 	protected:
 		const Oscope& oscope;
 		BoundsF bounds;

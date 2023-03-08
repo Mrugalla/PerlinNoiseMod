@@ -180,9 +180,11 @@
               file="Source/gui/MIDIVoicesComp.cpp"/>
         <FILE id="l3bsRz" name="MIDIVoicesComp.h" compile="0" resource="0"
               file="Source/gui/MIDIVoicesComp.h"/>
+        <FILE id="xTnTGu" name="Oscilloscope.h" compile="0" resource="0" file="Source/gui/Oscilloscope.h"/>
         <FILE id="iT1NDp" name="PatchBrowser.cpp" compile="1" resource="0"
               file="Source/gui/PatchBrowser.cpp"/>
         <FILE id="xFPkHy" name="PatchBrowser.h" compile="0" resource="0" file="Source/gui/PatchBrowser.h"/>
+        <FILE id="XXqe4S" name="RadioButton.h" compile="0" resource="0" file="Source/gui/RadioButton.h"/>
         <FILE id="vprnlz" name="Shader.cpp" compile="1" resource="0" file="Source/gui/Shader.cpp"/>
         <FILE id="F2ls2a" name="Shader.h" compile="0" resource="0" file="Source/gui/Shader.h"/>
         <FILE id="AX6z30" name="Shared.cpp" compile="1" resource="0" file="Source/gui/Shared.cpp"/>

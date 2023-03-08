@@ -233,6 +233,7 @@ namespace audio
 
     Processor::Processor() :
         ProcessorBackEnd(),
+        scope(),
         perlin()
 	{
     }
@@ -262,6 +263,8 @@ namespace audio
 #endif
 
         perlin.prepare(sampleRateUpF, blockSizeUp);
+        for(auto& s: scope)
+            s.prepare(sampleRateUp, blockSizeUp);
 
 		const auto latencyInt = static_cast<int>(latency);
         dryWetMix.prepare(sampleRateF, maxBlockSize, latencyInt);
@@ -406,7 +409,7 @@ namespace audio
 #if PPDHasHQ
         oversampler.downsample(mainBuffer);
 #endif
-
+        processBlockDownsampled(samples, numChannels, numSamples, midi);
 #if PPDHasStereoConfig
         if (midSideEnabled)
         {
@@ -501,6 +504,55 @@ namespace audio
         );
 
         perlin(samples, numChannels, numSamples, playHeadPos);
+
+        const auto omnidirectional = params[PID::Orientation]->getValMod() < .5f;
+        if (omnidirectional)
+        {
+            for (auto ch = 0; ch < numChannels; ++ch)
+            {
+                auto smpls = samples[ch];
+
+                SIMD::multiply(smpls, .5f, numSamples);
+                for (auto s = 0; s < numSamples; ++s)
+                    smpls[s] += .5f;
+            }
+        }
+
+        for(auto ch = 0; ch < numChannels; ++ch)
+            scope[ch](samples[ch], numSamples, playHeadPos);
+
+		
+    }
+
+    void Processor::processBlockDownsampled(float* const* samples, int numChannels, int numSamples,
+        MIDIBuffer& midi) noexcept
+    {
+        const auto outputToCC = params[PID::OutputType]->getValMod() > .5f;
+        if (outputToCC)
+        {
+            const auto omni = params[PID::Orientation]->getValMod() < .5f;
+            
+            const auto stepSize = 8;
+            if(omni)
+                for (auto s = 0; s < numSamples; s += stepSize)
+                {
+				    const auto smpl = samples[0][s];
+                    const auto cc = std::round(smpl * 127.f);
+				    const auto ccVal = static_cast<juce::uint8>(cc);
+				    midi.addEvent(juce::MidiMessage::controllerEvent(1, 1, ccVal), s);
+                }
+            else
+				for (auto s = 0; s < numSamples; s += stepSize)
+				{
+					for (auto ch = 0; ch < numChannels; ++ch)
+					{
+						const auto smpl = samples[ch][s];
+						const auto cc = std::round((smpl * .5f + .5f) * 127.f);
+						const auto ccVal = static_cast<juce::uint8>(cc);
+						midi.addEvent(juce::MidiMessage::controllerEvent(ch + 1, 1, ccVal), s);
+					}
+				}
+        }
     }
 
     void Processor::releaseResources() {}

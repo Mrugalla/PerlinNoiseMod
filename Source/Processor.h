@@ -17,6 +17,7 @@
 #include "audio/PRM.h"
 #include "audio/AudioUtils.h"
 
+#include "audio/Oscilloscope.h"
 #include "audio/PerlinNoise.h"
 
 namespace audio
@@ -111,6 +112,9 @@ namespace audio
 #endif
         ) noexcept;
 
+        /* samples, numChannels, numSamples, midi, samplesSC, numChannelsSC */
+        void processBlockDownsampled(float* const*, int numChannels, int numSamples, juce::MidiBuffer& midi) noexcept;
+
         void releaseResources() override;
 		
         /////////////////////////////////////////////
@@ -125,6 +129,7 @@ namespace audio
 
         juce::AudioProcessorEditor* createEditor() override;
 
+        std::array<Oscilloscope, 2> scope;
         Perlin2 perlin;
     };
 }

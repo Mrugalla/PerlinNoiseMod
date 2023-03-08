@@ -129,7 +129,7 @@ namespace gui
 
         layout.place(pluginTitle, 1, 0, 1, 1, false);
         layout.place(imgRefresh, 1.9f, .5f, .1f, .5f, true);
-        layout.place(lowLevel, 1, 1, 1, 1, false);
+        layout.place(lowLevel, 1, 0, 1, 2, false);
         layout.place(highLevel, 0, 0, 1, 2, false);
         
 #if PPDHasTuningEditor

@@ -244,8 +244,11 @@ namespace gui
         bgImage = bgImage.rescaled(width, height, Graphics::mediumResamplingQuality);
 	}
 
-    inline void makePerlinTerrain(Image& bgImage, int width, int height)
+    inline void makePerlinTerrain(Image& bgImage, int width, int height,
+        float mountainSizeRel = .24f, float arcSizeRel = .2f, float arcSizeYRel = .0f)
     {
+        mountainSizeRel *= .5f;
+
         bgImage = Image(Image::ARGB, width, height, true);
         Graphics g{ bgImage };
         
@@ -288,12 +291,22 @@ namespace gui
             const auto brightness = .12f + iR * .2f;
             g.setColour(Colours::c(ColourID::Hover).withAlpha(1.f).withBrightness(brightness));
 
+            const auto arcSizeY = arcSizeYRel * heightF;
+            const auto arcSize = heightF * arcSizeRel;
+			const auto mountainSize = heightF * mountainSizeRel;
+
             const auto xStep = 1;
 			const auto xStepF = static_cast<float>(xStep);
             for (auto x = 0; x < width; x += xStep)
             {
                 smpls[x] = (smpls[x] + 1.f) * .5f;
-                const auto h = smpls[x] * heightF * (.27f - iR * .20f);
+                
+                const auto xF = static_cast<float>(x);
+                const auto r = xF / widthF;
+                const auto rOff = r - .5f;
+                const auto arc = 4.f * rOff * rOff * arcSize + arcSizeY;
+                const auto mountain = smpls[x] * mountainSize;
+                const auto h = arc + mountain;
                 g.fillRect(static_cast<float>(x), heightF - h, xStepF, h);
             }
         }

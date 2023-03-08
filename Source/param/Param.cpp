@@ -78,6 +78,10 @@ namespace param
 		case PID::RateType: return "Rate Type";
 		case PID::RatePhase: return "Rate Phase";
 		case PID::Shape: return "Shape";
+		case PID::RandType: return "Rand Type";
+
+		case PID::Orientation: return "Orientation";
+		case PID::OutputType: return "Output Type";
 
 		default: return "Invalid Parameter Name";
 		}
@@ -159,10 +163,13 @@ namespace param
 		case PID::RateHz: return "The rate of the perlin noise mod in hz.";
 		case PID::RateBeats: return "The rate of the perlin noise mod in beats.";
 		case PID::Octaves: return "More octaves add complexity to the signal.";
-		case PID::Width: return "The width of the perlin noise mod.";
-		case PID::RateType: return "Free running rate in hz or temposync in beats.";
-		case PID::RatePhase: return "The phase of the perlin noise mod.";
-		case PID::Shape: return "The perlin noise mod's shape options.";
+		case PID::Width: return "This parameter adds a phase offset to the right channel.";
+		case PID::RateType: return "Switch between the rate units free running (hz) or temposync (beats).";
+		case PID::RatePhase: return "Apply a phase shift to this signal.";
+		case PID::Shape: return "The perlin noise mod can have 3 shapes. Steppy, linear and round.";
+		case PID::RandType: return "Switch between normal randomization and procedural generation.";
+		case PID::Orientation: return "Defines the range of the modulation. Omni [0,1], Bi [-1,1]";
+		case PID::OutputType: return "Output the modulation signal as MIDI CC(1) data on channel 1";
 
 		default: return "Invalid Tooltip.";
 		}
@@ -197,6 +204,7 @@ namespace param
 		case Unit::Legato: return "";
 		case Unit::Custom: return "";
 		case Unit::FilterType: return "";
+		case Unit::Orientation: return "";
 		default: return "";
 		}
 	}
@@ -870,6 +878,21 @@ namespace param::strToVal
 				return p(text, 0.f);
 		};
 	}
+
+	StrToValFunc orientation()
+	{
+		return [](const String& str)
+		{
+			const auto text = str.toLowerCase();
+			if (text == "omni")
+				return 0.f;
+			else if (text == "bi")
+				return 1.f;
+
+			auto parse = strToVal::parse();
+			return parse(text, 1.f);
+		};
+	}
 }
 
 namespace param::valToStr
@@ -1125,6 +1148,15 @@ namespace param::valToStr
 			}
 		};
 	}
+
+	ValToStrFunc orientation()
+	{
+		return [](float v)
+		{
+			return v < .5f ? String("Omni") :
+				String("Bi");
+		};
+	}
 }
 
 namespace param
@@ -1222,6 +1254,10 @@ namespace param
 		case Unit::FilterType:
 			valToStrFunc = valToStr::filterType();
 			strToValFunc = strToVal::filterType();
+			break;
+		case Unit::Orientation:
+			valToStrFunc = valToStr::orientation();
+			strToValFunc = strToVal::orientation();
 			break;
 		default:
 			valToStrFunc = [](float v) { return String(v); };
@@ -1332,17 +1368,52 @@ namespace param
 		};
 		auto strToValShape = [](const String& str)
 		{
-			if(str == "Steppy")
+			const auto text = str.toLowerCase();
+			if(text == "steppy" || text == "step")
 				return 0.f;
-			else if (str == "Lerp")
+			else if (text == "lerp" || text == "linear")
 				return 1.f;
-			else if (str == "Round")
+			else if (text == "round" || text == "smooth")
 				return 2.f;
 			
 			auto parse = strToVal::parse();
 			return parse(str, 2.f);
 		};
 
+		auto valToStrRandType = [](float v)
+		{
+			return v < .5f ? String("Random") :
+				String("Procedural");
+		};
+		auto strToValRandType = [](const String& str)
+		{
+			const auto text = str.toLowerCase();
+			if (text == "rand" || text == "random" || text == "randomise" || text == "randomize")
+				return 0.f;
+			else if (text == "procedural" || text == "proc" || text == "proceduralise" || text == "proceduralize")
+				return 1.f;
+
+			auto parse = strToVal::parse();
+			return parse(str, 0.f);
+		};
+
+		auto valToStrOutputType = [](float v)
+		{
+			return v < .5f ? String("Direct Out") :
+				String("MIDI CC");
+		};
+		auto strToValOutputType = [](const String& str)
+		{
+			const auto text = str.toLowerCase();
+			if (text == "out" || text == "direct" || text == "direct out" || text == "do")
+				return 0.f;
+			else if (text == "midi cc" || text == "cc" || text == "midi")
+				return 1.f;
+
+			auto parse = strToVal::parse();
+			return parse(str, 0.f);
+		};
+		
 		params.push_back(makeParam(PID::RateHz, state, 2.f, makeRange::withCentre(1.f, 40.f, 2.f), Unit::Hz));
 		params.push_back(makeParam(PID::RateBeats, state, 1.f / 4.f, makeRange::beats(32.f, .5f, false) , Unit::Beats));
 		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::stepped(1.f, 7.f, 1.f), Unit::Octaves));
@@ -1350,6 +1421,10 @@ namespace param
 		params.push_back(makeParam(PID::RateType, state, 0.f, makeRange::toggle(), Unit::Power));
 		params.push_back(makeParam(PID::RatePhase, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
 		params.push_back(makeParam(PID::Shape, state, 2.f, makeRange::stepped(0.f, 2.f, 1.f), valToStrShape, strToValShape));
+		params.push_back(makeParam(PID::RandType, state, 0.f, makeRange::toggle(), valToStrRandType, strToValRandType));
+
+		params.push_back(makeParam(PID::Orientation, state, 1.f, makeRange::toggle(), Unit::Orientation));
+		params.push_back(makeParam(PID::OutputType, state, 0.f, makeRange::toggle(), valToStrOutputType, strToValOutputType));
 		// LOW LEVEL PARAMS END
 
 		for (auto param : params)

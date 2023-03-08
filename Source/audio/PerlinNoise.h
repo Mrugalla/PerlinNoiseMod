@@ -22,6 +22,21 @@ namespace audio
 		}
 	}
 
+	inline float getInterpolatedNN(const float* noise, float phase) noexcept
+	{
+		return noise[static_cast<int>(std::round(phase)) + 1];
+	}
+
+	inline float getInterpolatedLerp(const float* noise, float phase) noexcept
+	{
+		return interpolate::lerp(noise, phase + 1.5f);
+	}
+
+	inline float getInterpolatedSpline(const float* noise, float phase) noexcept
+	{
+		return interpolate::cubicHermiteSpline(noise, phase);
+	}
+
 	struct Perlin
 	{
 		enum class Shape
@@ -30,6 +45,7 @@ namespace audio
 		};
 
 		using PlayHeadPos = juce::AudioPlayHead::CurrentPositionInfo;
+		using InterpolationFunc = float(*)(const float*, float) noexcept;
 
 		static constexpr int NumOctaves = 7;
 		static constexpr int NoiseOvershoot = 4;
@@ -42,6 +58,7 @@ namespace audio
 
 		Perlin() :
 			// misc
+			interpolationFuncs{ &getInterpolatedNN, &getInterpolatedLerp, &getInterpolatedSpline },
 			sampleRateInv(1.),
 			fs(1.f),
 			// phase
@@ -109,6 +126,7 @@ namespace audio
 		}
 
 		// misc
+		std::array<InterpolationFunc, 3> interpolationFuncs;
 		double sampleRateInv;
 		float fs;
 		
@@ -153,8 +171,22 @@ namespace audio
 				processOctavesSmoothing(smpls, octavesBuf, noise, gainBuffer, shape, numSamples);
 		}
 
-		static constexpr float LerpPhaseOffset = 1.5f;
 		
+		float getInterpolatedSample(const float* noise, float phase, Shape shape) noexcept
+		{
+			return interpolationFuncs[static_cast<int>(shape)](noise, phase);
+			
+			/*
+			switch (shape)
+			{
+			case Shape::NN: return getInterpolatedNN(noise, phase);
+			case Shape::Lerp: return getInterpolatedLerp(noise, phase);
+			default: // Spline
+				return getInterpolatedSpline(noise, phase);
+			}
+			*/
+		}
+
 		void processOctavesNotSmoothing(float* smpls, const float* noise,
 			const float* gainBuffer, Shape shape, int numSamples) noexcept
 		{
@@ -166,20 +198,7 @@ namespace audio
 				for (auto o = 0; o < octFloor; ++o)
 				{
 					const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-
-					float smpl;
-					switch (shape)
-					{
-					case Shape::NN:
-						smpl = noise[static_cast<int>(std::round(phase)) + 1];
-						break;
-					case Shape::Lerp:
-						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
-						break;
-					default: // Spline
-						smpl = interpolate::cubicHermiteSpline(noise, phase);
-						break;
-					}
+					const auto smpl = getInterpolatedSample(noise, phase, shape);
 					sample += smpl * gainBuffer[o];
 				}
 
@@ -198,20 +217,7 @@ namespace audio
 				for (auto s = 0; s < numSamples; ++s)
 				{
 					const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-
-					float smpl;
-					switch (shape)
-					{
-					case Shape::NN:
-						smpl = noise[static_cast<int>(std::round(phase)) + 1];
-						break;
-					case Shape::Lerp:
-						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
-						break;
-					default: // Spline
-						smpl = interpolate::cubicHermiteSpline(noise, phase);
-						break;
-					}
+					const auto smpl = getInterpolatedSample(noise, phase, shape);
 					smpls[s] += octFrac * smpl * gainBuffer[octFloorInt];;
 				}
 
@@ -232,20 +238,7 @@ namespace audio
 				for (auto o = 0; o < octFloor; ++o)
 				{
 					const auto phase = getPhaseOctaved(phaseBuffer[s], o);
-
-					float smpl;
-					switch (shape)
-					{
-					case Shape::NN:
-						smpl = noise[static_cast<int>(std::round(phase)) + 1];
-						break;
-					case Shape::Lerp:
-						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
-						break;
-					default: // Spline
-						smpl = interpolate::cubicHermiteSpline(noise, phase);
-						break;
-					}
+					const auto smpl = getInterpolatedSample(noise, phase, shape);
 					sample += smpl * gainBuffer[o];
 				}
 
@@ -261,20 +254,7 @@ namespace audio
 					const auto octFloorInt = static_cast<int>(octFloor);
 
 					const auto phase = getPhaseOctaved(phaseBuffer[s], octFloorInt);
-
-					float smpl;
-					switch (shape)
-					{
-					case Shape::NN:
-						smpl = noise[static_cast<int>(std::round(phase)) + 1];
-						break;
-					case Shape::Lerp:
-						smpl = interpolate::lerp(noise, phase + LerpPhaseOffset);
-						break;
-					default: // Spline
-						smpl = interpolate::cubicHermiteSpline(noise, phase);
-						break;
-					}
+					const auto smpl = getInterpolatedSample(noise, phase, shape);
 					smpls[s] += octFrac * smpl * gainBuffer[octFloorInt];
 
 					gain += octFrac * gainBuffer[octFloorInt];
@@ -548,9 +528,11 @@ namespace audio
 MODULATOR >>>
 
 features:
-	-
+	functionality for
+		proc/random
 	
 bugs:
+	free running, fast rate, much octaves: discontinuity regular intervals
 	jumps in project position in temposync cause discontinuity
 
 optimize:
@@ -559,8 +541,7 @@ optimize:
 PLUGIN >>>
 
 features:
-	omnidirectional/bidirectional switch
-	midi cc out
+	-
 
 optimize:
 	fixed blocksize
