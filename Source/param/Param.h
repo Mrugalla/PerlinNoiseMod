@@ -67,7 +67,7 @@ namespace param
 		Octaves,
 		Width,
 		RateType,
-		RatePhase,
+		Phase,
 		Shape,
 		RandType,
 
@@ -303,6 +303,7 @@ namespace param
 		StrToValFunc legato();
 		StrToValFunc filterType();
 		StrToValFunc orientation();
+		StrToValFunc degree();
 	}
 
 	namespace valToStr
@@ -334,6 +335,7 @@ namespace param
 		ValToStrFunc legato();
 		ValToStrFunc filterType();
 		ValToStrFunc orientation();
+		ValToStrFunc degree();
 	}
 
 	struct MacroProcessor

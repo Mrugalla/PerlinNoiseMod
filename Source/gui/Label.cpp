@@ -56,6 +56,7 @@ namespace gui
 	void Label::resized()
 	{
 		updateTextBounds();
+		updateTextBounds();
 	}
 
 	void Label::updateTextBounds()

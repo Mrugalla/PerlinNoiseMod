@@ -76,7 +76,7 @@ namespace param
 		case PID::Octaves: return "Octaves";
 		case PID::Width: return "Width";
 		case PID::RateType: return "Rate Type";
-		case PID::RatePhase: return "Rate Phase";
+		case PID::Phase: return "Phase";
 		case PID::Shape: return "Shape";
 		case PID::RandType: return "Rand Type";
 
@@ -165,7 +165,7 @@ namespace param
 		case PID::Octaves: return "More octaves add complexity to the signal.";
 		case PID::Width: return "This parameter adds a phase offset to the right channel.";
 		case PID::RateType: return "Switch between the rate units free running (hz) or temposync (beats).";
-		case PID::RatePhase: return "Apply a phase shift to this signal.";
+		case PID::Phase: return "Apply a phase shift to this modulation signal.";
 		case PID::Shape: return "The perlin noise mod can have 3 shapes. Steppy, linear and round.";
 		case PID::RandType: return "Switch between normal randomization and procedural generation.";
 		case PID::Orientation: return "Defines the range of the modulation. Omni [0,1], Bi [-1,1]";
@@ -893,6 +893,16 @@ namespace param::strToVal
 			return parse(text, 1.f);
 		};
 	}
+
+	StrToValFunc degree()
+	{
+		return[p = parse()](const String& txt)
+		{
+			const auto text = txt.trimCharactersAtEnd(toString(Unit::Degree));
+			const auto val = p(text, 0.f);
+			return val / 360.f;
+		};
+	}
 }
 
 namespace param::valToStr
@@ -1157,6 +1167,14 @@ namespace param::valToStr
 				String("Bi");
 		};
 	}
+
+	ValToStrFunc degree()
+	{
+		return [](float v)
+		{
+			return String(std::round(v * 360.f)) + " " + toString(Unit::Degree);
+		};
+	}
 }
 
 namespace param
@@ -1258,6 +1276,10 @@ namespace param
 		case Unit::Orientation:
 			valToStrFunc = valToStr::orientation();
 			strToValFunc = strToVal::orientation();
+			break;
+		case Unit::Degree:
+			valToStrFunc = valToStr::degree();
+			strToValFunc = strToVal::degree();
 			break;
 		default:
 			valToStrFunc = [](float v) { return String(v); };
@@ -1416,10 +1438,10 @@ namespace param
 		
 		params.push_back(makeParam(PID::RateHz, state, 2.f, makeRange::withCentre(1.f, 40.f, 2.f), Unit::Hz));
 		params.push_back(makeParam(PID::RateBeats, state, 1.f / 4.f, makeRange::beats(32.f, .5f, false) , Unit::Beats));
-		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::stepped(1.f, 7.f, 1.f), Unit::Octaves));
+		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::lin(1.f, 7.f), Unit::Octaves));
 		params.push_back(makeParam(PID::Width, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
 		params.push_back(makeParam(PID::RateType, state, 0.f, makeRange::toggle(), Unit::Power));
-		params.push_back(makeParam(PID::RatePhase, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));
+		params.push_back(makeParam(PID::Phase, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Degree));
 		params.push_back(makeParam(PID::Shape, state, 2.f, makeRange::stepped(0.f, 2.f, 1.f), valToStrShape, strToValShape));
 		params.push_back(makeParam(PID::RandType, state, 0.f, makeRange::toggle(), valToStrRandType, strToValRandType));
 

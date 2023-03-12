@@ -284,6 +284,7 @@ namespace gui
                 0.f,
                 0.f,
                 audio::Perlin::Shape::Spline,
+                false,
                 false
             );
             perlin(samples, 1, width, playHeadPos);
