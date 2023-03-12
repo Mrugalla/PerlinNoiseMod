@@ -397,7 +397,7 @@ namespace audio
 			prevBuffer.setSize(2, blockSize, false, false, false);
 			for (auto& perlin : perlins)
 				perlin.prepare(fs, blockSize);
-			xInc = msInInc(420.f, fs);
+			xInc = msInInc(40.f, fs);
 			xFadeBuffer.resize(blockSize);
 			octavesPRM.prepare(fs, blockSize, 10.f);
 			widthPRM.prepare(fs, blockSize, 20.f);
@@ -411,14 +411,14 @@ namespace audio
 			octaves = _octaves;
 			width = _width;
 			phs = _phs;
+			for (auto& perlin : perlins)
+				perlin.setParameters(octaves, width, phs);
 			shape = _shape;
 			temposync = _temposync;
 			procedural = _procedural;
 
 			if (rateBeats != _rateBeats)
 			{
-				perlins[perlinIndex].setParameters(octaves, width, phs);
-				
 				if (!crossfading)
 				{
 					rateBeats = _rateBeats;
@@ -631,10 +631,11 @@ namespace audio
 MODULATOR >>>
 
 features:
-	-
+	sub 1hz values
 	
 bugs:
-	-
+	free proc diskontinuitäten
+		unterschiedlich je nachdem wann auf proc gedrückt wurd
 
 optimize:
     -
