@@ -568,6 +568,11 @@ namespace param::strToVal
 				multiplier = 1000.f;
 				text = text.dropLastCharacters(1);
 			}
+			else if (text.getLastCharacter() == 'm')
+			{
+				multiplier = .001f;
+				text = text.dropLastCharacters(1);
+			}
 			const auto val = p(text, 0.f);
 			const auto val2 = val * multiplier;
 			
@@ -935,8 +940,20 @@ namespace param::valToStr
 				return String(v * .001).substring(0, 4) + " k" + toString(Unit::Hz);
 			else if (v >= 1000.f)
 				return String(v * .001).substring(0, 3) + " k" + toString(Unit::Hz);
-			else
+			else if(v >= 1.f)
 				return String(v).substring(0, 5) + " " + toString(Unit::Hz);
+			else
+			{
+				v *= 1000.f;
+
+				if(v >= 100.f)
+					return String(v).substring(0, 3) + " m" + toString(Unit::Hz);
+				else if (v >= 10.f)
+					return String(v).substring(0, 2) + " m" + toString(Unit::Hz);
+				else
+					return String(v).substring(0, 1) + " m" + toString(Unit::Hz);
+			}
+				
 		};
 	}
 
@@ -1436,7 +1453,7 @@ namespace param
 			return parse(str, 0.f);
 		};
 		
-		params.push_back(makeParam(PID::RateHz, state, 2.f, makeRange::withCentre(1.f, 40.f, 2.f), Unit::Hz));
+		params.push_back(makeParam(PID::RateHz, state, 2.f, makeRange::withCentre(1.f / 1000.f, 40.f, 2.f), Unit::Hz));
 		params.push_back(makeParam(PID::RateBeats, state, 1.f / 4.f, makeRange::beats(32.f, .5f, false) , Unit::Beats));
 		params.push_back(makeParam(PID::Octaves, state, 1.f, makeRange::lin(1.f, 7.f), Unit::Octaves));
 		params.push_back(makeParam(PID::Width, state, 0.f, makeRange::quad(0.f, 2.f, 1), Unit::Percent));

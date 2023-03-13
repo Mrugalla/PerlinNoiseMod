@@ -539,7 +539,6 @@ namespace audio
 					initCrossfade();
 					perlins[perlinIndex].processRateFreeInc(rateHzInv);
 				}
-				oopsie(playHeadPos.ppqPosition > 1 && crossfading);
 
 				perlins[perlinIndex].processRateFreeProcedural(playHeadPos, rateHz);
 
@@ -631,11 +630,13 @@ namespace audio
 MODULATOR >>>
 
 features:
-	sub 1hz values
+	-
 	
 bugs:
-	free proc diskontinuitäten
-		unterschiedlich je nachdem wann auf proc gedrückt wurd
+	free proc
+		diskontinuitäten in plugin mode
+			piepsen bei init
+			unterschiedlich je nachdem wann auf proc gedrückt wurd
 
 optimize:
     -
