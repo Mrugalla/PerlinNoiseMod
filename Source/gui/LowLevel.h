@@ -1,6 +1,5 @@
 #pragma once
 #include "Knob.h"
-#include "EnvelopeGenerator.h"
 #include "Oscilloscope.h"
 
 namespace gui
@@ -157,8 +156,8 @@ namespace gui
             layout.place(rateHz, 2, 2, 1, 2);
             layout.place(rateBeats, 2, 2, 1, 2);
             // perlin params:
-			layout.place(scopeL, 3, 1, 2, 1);
-			layout.place(scopeR, 3, 1, 2, 1);
+			layout.place(scopeL, 3, 1, 1, 1);
+			layout.place(scopeR, 3, 1, 1, 1);
             {
                 const auto area = layout(3, 2, 1, 1);
                 const auto w = area.getWidth();

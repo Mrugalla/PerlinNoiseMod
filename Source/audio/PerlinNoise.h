@@ -64,11 +64,7 @@ namespace audio
 			// phase
 			phasor(),
 			phaseBuffer(),
-			noiseIdx(0),
-			// parameters
-			octaves(1.f),
-			width(0.f),
-			phs(0.f)
+			noiseIdx(0)
 		{
 		}
 
@@ -81,22 +77,14 @@ namespace audio
 			phaseBuffer.resize(blockSize);
 		}
 
-		/* octaves, width, phase */
-		void setParameters(float _octaves, float _width, float _phs) noexcept
-		{
-			octaves = _octaves;
-			width = _width;
-			phs = _phs;
-		}
-
 		/* rateHzInv */
-		void processRateFreeInc(double rateHzInv) noexcept
+		void updateSpeed(double rateHzInv) noexcept
 		{
 			phasor.inc = rateHzInv;
 		}
 
 		/*  playHeadPos, rateHz */
-		void processRateFreeProcedural(const PlayHeadPos& playHeadPos, double rateHz) noexcept
+		void updatePosition(const PlayHeadPos& playHeadPos, double rateHz) noexcept
 		{
 			const auto timeInSamples = playHeadPos.timeInSamples;
 			const auto timeInSecs = static_cast<double>(timeInSamples) * sampleRateInv;
@@ -106,15 +94,9 @@ namespace audio
 			noiseIdx = static_cast<int>(timeInHzFloor) & NoiseSizeMax;
 			phasor.phase.phase = timeInHz - timeInHzFloor;
 		}
-
-		/* rateBeatsInv, beatsPerSamples */
-		void processRateSyncInc(double rateBeatsInv, double beatsPerSamples) noexcept
-		{
-			phasor.inc = beatsPerSamples * rateBeatsInv;
-		}
 		
 		/* playHeadPos, rateBeatsInv */
-		void processRateSyncProcedural(const PlayHeadPos& playHeadPos, double rateBeatsInv) noexcept
+		void updatePositionSyncProcedural(const PlayHeadPos& playHeadPos, double rateBeatsInv) noexcept
 		{
 			const auto ppq = playHeadPos.ppqPosition * rateBeatsInv + .5;
 			const auto ppqFloor = std::floor(ppq);
@@ -123,29 +105,23 @@ namespace audio
 			phasor.phase.phase = ppq - ppqFloor;
 		}
 
-		/* playHeadPos, rateBeatsInv */
-		void processRateSyncRandom(const PlayHeadPos& playHeadPos, double rateBeatsInv) noexcept
-		{
-			const auto ppq = playHeadPos.ppqPosition * rateBeatsInv + .5;
-			const auto ppqFloor = std::floor(ppq);
-
-			//noiseIdx = static_cast<int>(ppqFloor) & NoiseSizeMax;
-			phasor.phase.phase = ppq - ppqFloor;
-		}
-
-		/* samples, noise, gainBuffer, octavesBuffer, phsBuf, widthBuf, shape,
-		numChannels, numSamples, octavesSmoothing, phsSmoothing, widthSmoothing */
+		/* samples, noise, gainBuffer,
+		octavesBuffer, phsBuf, widthBuf, shape,
+		octaves, width, phs
+		numChannels, numSamples,
+		octavesSmoothing, phsSmoothing, widthSmoothing */
 		void operator()(float* const* samples, const float* noise, const float* gainBuffer,
 			const float* octavesBuf, const float* phsBuf, const float* widthBuf, Shape shape,
+			float octaves, float width, float phs,
 			int numChannels, int numSamples,
 			bool octavesSmoothing, bool phsSmoothing, bool widthSmoothing) noexcept
 		{
-			synthesizePhasor(phsBuf, numSamples, phsSmoothing);
+			synthesizePhasor(phsBuf, phs, numSamples, phsSmoothing);
 			
-			processOctaves(samples[0], octavesBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing);
+			processOctaves(samples[0], octavesBuf, noise, gainBuffer, octaves, shape, numSamples, octavesSmoothing);
 			
 			if(numChannels == 2)
-				processWidth(samples, octavesBuf, widthBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing, widthSmoothing);
+				processWidth(samples, octavesBuf, widthBuf, noise, gainBuffer, octaves, width, shape, numSamples, octavesSmoothing, widthSmoothing);
 		}
 
 		// misc
@@ -157,12 +133,10 @@ namespace audio
 		Phasor<double> phasor;
 		std::vector<float> phaseBuffer;
 		int noiseIdx;
-
-		// parameters
-		float octaves, width, phs;
 		
 	protected:
-		void synthesizePhasor(const float* phsBuf, int numSamples, bool phaseSmoothing) noexcept
+		/* phsBuf, phs, numSamples, phaseSmoothing */
+		void synthesizePhasor(const float* phsBuf, float phs, int numSamples, bool phaseSmoothing) noexcept
 		{
 			if(!phaseSmoothing)
 				for (auto s = 0; s < numSamples; ++s)
@@ -184,34 +158,25 @@ namespace audio
 				}
 		}
 
+		/* smpls, octavesBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing */
 		void processOctaves(float* smpls, const float* octavesBuf,
-			const float* noise, const float* gainBuffer, Shape shape, int numSamples,
+			const float* noise, const float* gainBuffer, float octaves, Shape shape, int numSamples,
 			bool octavesSmoothing) noexcept
 		{
 			if (!octavesSmoothing)
-				processOctavesNotSmoothing(smpls, noise, gainBuffer, shape, numSamples);
+				processOctavesNotSmoothing(smpls, noise, gainBuffer, octaves, shape, numSamples);
 			else
 				processOctavesSmoothing(smpls, octavesBuf, noise, gainBuffer, shape, numSamples);
 		}
-
 		
 		float getInterpolatedSample(const float* noise, float phase, Shape shape) noexcept
 		{
 			return interpolationFuncs[static_cast<int>(shape)](noise, phase);
-			
-			/*
-			switch (shape)
-			{
-			case Shape::NN: return getInterpolatedNN(noise, phase);
-			case Shape::Lerp: return getInterpolatedLerp(noise, phase);
-			default: // Spline
-				return getInterpolatedSpline(noise, phase);
-			}
-			*/
 		}
 
+		/* smpls, noise, gainBuffer, octaves, shape, numSamples */
 		void processOctavesNotSmoothing(float* smpls, const float* noise,
-			const float* gainBuffer, Shape shape, int numSamples) noexcept
+			const float* gainBuffer, float octaves, Shape shape, int numSamples) noexcept
 		{
 			const auto octFloor = std::floor(octaves);
 
@@ -250,6 +215,7 @@ namespace audio
 			SIMD::multiply(smpls, 1.f / std::sqrt(gain), numSamples);
 		}
 		
+		/* smpls, octavesBuf, noise, gainBuffer, shape, numSamples */
 		void processOctavesSmoothing(float* smpls, const float* octavesBuf,
 			const float* noise, const float* gainBuffer, Shape shape, int numSamples) noexcept
 		{
@@ -287,9 +253,10 @@ namespace audio
 			}
 		}
 
+		/* samples, octavesBuf, widthBuf, noise, gainBuffer, octaves, width, shape, numSamples, octavesSmoothing, widthSmoothing */
 		void processWidth(float* const* samples, const float* octavesBuf,
-			const float* widthBuf, const float* noise, const float* gainBuffer, Shape shape,
-			int numSamples, bool octavesSmoothing, bool widthSmoothing) noexcept
+			const float* widthBuf, const float* noise, const float* gainBuffer, float octaves, float width,
+			Shape shape, int numSamples, bool octavesSmoothing, bool widthSmoothing) noexcept
 		{
 			if (!widthSmoothing)
 				if (width == 0.f)
@@ -299,7 +266,7 @@ namespace audio
 			else
 				SIMD::add(phaseBuffer.data(), widthBuf, numSamples);
 
-			processOctaves(samples[1], octavesBuf, noise, gainBuffer, shape, numSamples, octavesSmoothing);
+			processOctaves(samples[1], octavesBuf, noise, gainBuffer, octaves, shape, numSamples, octavesSmoothing);
 		}
 
 		float getPhaseOctaved(float phaseInfo, int o) const noexcept
@@ -312,6 +279,7 @@ namespace audio
 		}
 
 		// debug:
+#if JUCE_DEBUG
 		void discontinuityJassert(float* smpls, int numSamples, float threshold = .1f)
 		{
 			auto lastSample = smpls[0];
@@ -332,6 +300,7 @@ namespace audio
 					oopsie(std::abs(samples[ch][s]) <= -1.f);
 				}
 		}
+#endif
 	};
 
 	struct Perlin2
@@ -353,17 +322,9 @@ namespace audio
 			octavesPRM(1.f),
 			widthPRM(0.f),
 			phsPRM(0.f),
-			//
-			rateHz(0.),
-			rateHzInv(1.),
 			rateBeats(-1.),
-			rateBeatsInv(1.),
-			octaves(1.f),
-			width(0.f),
-			phs(0.f),
-			shape(Shape::Spline),
-			temposync(false),
-			procedural(false),
+			rateHz(-1.),
+			rateInv(0.),
 			// crossfade
 			xFadeBuffer(),
 			xPhase(0.f),
@@ -397,61 +358,26 @@ namespace audio
 			prevBuffer.setSize(2, blockSize, false, false, false);
 			for (auto& perlin : perlins)
 				perlin.prepare(fs, blockSize);
-			xInc = msInInc(40.f, fs);
+			xInc = msInInc(420.f, fs);
 			xFadeBuffer.resize(blockSize);
 			octavesPRM.prepare(fs, blockSize, 10.f);
 			widthPRM.prepare(fs, blockSize, 20.f);
 			phsPRM.prepare(fs, blockSize, 20.f);
 		}
 
-		void setParameters(double _rateHz, double _rateBeats,
-			float _octaves, float _width, float _phs,
-			Shape _shape, bool _temposync, bool _procedural) noexcept
-		{
-			octaves = _octaves;
-			width = _width;
-			phs = _phs;
-			for (auto& perlin : perlins)
-				perlin.setParameters(octaves, width, phs);
-			shape = _shape;
-			temposync = _temposync;
-			procedural = _procedural;
-
-			if (rateBeats != _rateBeats)
-			{
-				if (!crossfading)
-				{
-					rateBeats = _rateBeats;
-					rateBeatsInv = .25 / rateBeats;
-					initCrossfade();
-				}
-			}
-			if (rateHz != _rateHz)
-			{
-				if (procedural)
-				{
-					if(!crossfading)
-					{
-						rateHz = _rateHz;
-						rateHzInv = _rateHz * sampleRateInv;
-						initCrossfade();
-					}
-				}
-				else
-				{
-					rateHz = _rateHz;
-					rateHzInv = _rateHz * sampleRateInv;
-				}
-			}
-		}
-
+		/* samples, numChannels, numSamples, playHeadPos,
+		rateHz, rateBeats, octaves, width, phs, shape,
+		temposync, procedural */
 		void operator()(float* const* samples, int numChannels, int numSamples,
-			const PlayHeadPos& playHeadPos) noexcept
+			const PlayHeadPos& playHeadPos,
+			double _rateHz, double _rateBeats,
+			float octaves, float width, float phs,
+			Shape shape, bool temposync, bool procedural) noexcept
 		{
 			if(temposync)
-				processTemposync(playHeadPos, numSamples);
+				processSync(playHeadPos, numSamples, _rateBeats, procedural);
 			else
-				processFree(playHeadPos, numSamples);
+				processFree(playHeadPos, numSamples, _rateHz, procedural);
 
 			const auto octavesBuf = octavesPRM(octaves, numSamples);
 			const auto phsBuf = phsPRM(phs, numSamples);
@@ -466,6 +392,9 @@ namespace audio
 				phsBuf,
 				widthBuf,
 				shape,
+				octaves,
+				width,
+				phs,
 				numChannels,
 				numSamples,
 				octavesPRM.smoothing,
@@ -479,6 +408,10 @@ namespace audio
 				octavesBuf,
 				phsBuf,
 				widthBuf,
+				octaves,
+				width,
+				phs,
+				shape,
 				numChannels,
 				numSamples
 			);
@@ -495,64 +428,129 @@ namespace audio
 		int perlinIndex;
 		// parameters
 		PRM octavesPRM, widthPRM, phsPRM;
-		double rateHz, rateHzInv, rateBeats, rateBeatsInv;
-		float octaves, width, phs;
-		Shape shape;
-		bool temposync;
+		double rateBeats, rateHz;
+		double rateInv;
 		// crossfade
 		std::vector<float> xFadeBuffer;
 		float xPhase, xInc;
-		bool crossfading, procedural;
+		bool crossfading;
 		// seed
 		std::atomic<int> seed;
 		// project position
 		__int64 curPosEstimate, curPosInSamples;
 
-		void processTemposync(const PlayHeadPos& playHeadPos, int numSamples) noexcept
+		// PROCESS FREE
+		void processFree(const PlayHeadPos& playHeadPos, int numSamples, double _rateHz, bool procedural) noexcept
 		{
-			if (playHeadPos.isPlaying)
+			if (procedural && playHeadPos.isPlaying)
+				processFreeProcedural(playHeadPos, _rateHz, numSamples);
+			else
+				processFreeRandom(_rateHz);
+		}
+		
+		void processFreeRandom(double _rateHz) noexcept
+		{
+			rateHz = _rateHz;
+			rateInv = _rateHz * sampleRateInv;
+
+			perlins[perlinIndex].updateSpeed(rateInv);
+		}
+
+		void processFreeProcedural(const PlayHeadPos& playHeadPos, double _rateHz, int numSamples) noexcept
+		{
+			curPosInSamples = playHeadPos.timeInSamples;
+			
+			if (!crossfading)
 			{
-				if (playHeadJumps(playHeadPos.timeInSamples))
+				bool shallCrossfade = false;
+
+				if (playHeadJumps())
+				{
+					shallCrossfade = true;
+				}
+				else if (rateHz != _rateHz)
+				{
+					rateHz = _rateHz;
+					rateInv = _rateHz * sampleRateInv;
+					shallCrossfade = true;
+				}
+
+				if (shallCrossfade)
+				{
 					initCrossfade();
-
-				if (procedural)
-					perlins[perlinIndex].processRateSyncProcedural(playHeadPos, rateBeatsInv);
-				else
-					perlins[perlinIndex].processRateSyncRandom(playHeadPos, rateBeatsInv);
-
-				processCurPosEstimate(numSamples);
+					perlins[perlinIndex].updateSpeed(rateInv);
+					
+				}
 			}
 
+			perlins[perlinIndex].updatePosition(playHeadPos, rateHz);
+			
+			processCurPosEstimate(numSamples);
+		}
+
+		// PROCESS TEMPOSYNC
+		void processSync(const PlayHeadPos& playHeadPos, int numSamples, double _rateBeats, bool procedural) noexcept
+		{
+			if (procedural && playHeadPos.isPlaying)
+				processSyncProcedural(playHeadPos, _rateBeats, numSamples);
+			else
+				processSyncRandom(playHeadPos, _rateBeats);
+		}
+
+		void processSyncUpdateSpeed(const PlayHeadPos& playHeadPos) noexcept
+		{
 			const auto bpMins = playHeadPos.bpm;
 			const auto bpSecs = bpMins / 60.;
 			const auto bpSamples = bpSecs * sampleRateInv;
+			const auto speed = rateInv * bpSamples;
 
-			perlins[perlinIndex].processRateSyncInc(rateBeatsInv, bpSamples);
+			perlins[perlinIndex].updateSpeed(speed);
 		}
 
-		void processFree(const PlayHeadPos& playHeadPos, int numSamples) noexcept
+		void processSyncRandom(const PlayHeadPos& playHeadPos, double _rateBeats) noexcept
 		{
-			if (procedural && playHeadPos.isPlaying)
+			rateBeats = _rateBeats;
+			rateInv = .25 / rateBeats;
+			
+			processSyncUpdateSpeed(playHeadPos);
+		}
+
+		void processSyncProcedural(const PlayHeadPos& playHeadPos, double _rateBeats, int numSamples) noexcept
+		{
+			curPosInSamples = playHeadPos.timeInSamples;
+
+			if (!crossfading)
 			{
-				if (playHeadJumps(playHeadPos.timeInSamples))
+				bool shallCrossfade = false;
+
+				if (playHeadJumps())
 				{
-					initCrossfade();
-					perlins[perlinIndex].processRateFreeInc(rateHzInv);
+					shallCrossfade = true;
+				}
+				else if (rateBeats != _rateBeats)
+				{
+					rateBeats = _rateBeats;
+					rateInv = .25 / rateBeats;
+					shallCrossfade = true;
 				}
 
-				perlins[perlinIndex].processRateFreeProcedural(playHeadPos, rateHz);
-
-				processCurPosEstimate(numSamples);
+				if (shallCrossfade)
+				{
+					initCrossfade();
+					processSyncUpdateSpeed(playHeadPos);
+				}
 			}
-			else
-				perlins[perlinIndex].processRateFreeInc(rateHzInv);
+
+			perlins[perlinIndex].updatePositionSyncProcedural(playHeadPos, rateInv);
+
+			processCurPosEstimate(numSamples);
 		}
-		
-		bool playHeadJumps(__int64 timeInSamples) noexcept
+
+		// CROSSFADE FUNCS
+		bool playHeadJumps() noexcept
 		{
-			curPosInSamples = timeInSamples;
 			const auto distance = std::abs(curPosInSamples - curPosEstimate);
-			return distance > 2 && !crossfading;
+			return distance > 2;
 		}
 
 		void processCurPosEstimate(int numSamples) noexcept
@@ -565,11 +563,13 @@ namespace audio
 			xPhase = 0.f;
 			crossfading = true;
 			perlinIndex = 1 - perlinIndex;
-			perlins[perlinIndex].setParameters(octaves, width, phs);
 		}
 
+		/* samples, octavesBuf, phsBuf, widthBuf,
+		octaves, width, phs, numChannels, numSamples */
 		void processCrossfade(float* const* samples, const float* octavesBuf,
 			const float* phsBuf, const float* widthBuf,
+			float octaves, float width, float phs, Shape shape,
 			int numChannels, int numSamples) noexcept
 		{
 			if (crossfading)
@@ -584,6 +584,9 @@ namespace audio
 					phsBuf,
 					widthBuf,
 					shape,
+					octaves,
+					width,
+					phs,
 					numChannels,
 					numSamples,
 					octavesPRM.smoothing,
@@ -633,11 +636,8 @@ features:
 	-
 	
 bugs:
-	free proc
-		diskontinuitäten in plugin mode
-			piepsen bei init
-			unterschiedlich je nachdem wann auf proc gedrückt wurd
-
+	-
+	
 optimize:
     -
 

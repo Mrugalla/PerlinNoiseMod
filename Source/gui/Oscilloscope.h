@@ -42,7 +42,7 @@ namespace gui
 			const auto beatLength = oscope.getBeatLength();
 			const auto w = bounds.getWidth();
 			const auto h = bounds.getHeight();
-			const auto xScale = w / std::max(beatLength, sizeF);
+			const auto xScale = w / std::min(beatLength, sizeF);
 			const auto xScaleInv = 1.f / xScale;
 			const auto xOff = bounds.getX();
 			

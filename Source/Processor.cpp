@@ -484,19 +484,23 @@ namespace audio
 #endif
     ) noexcept
     {
-        auto rateHz = params[PID::RateHz]->getValModDenorm();
-		auto rateBeats = params[PID::RateBeats]->getValModDenorm();
-		auto oct = params[PID::Octaves]->getValModDenorm();
-		auto width = params[PID::Width]->getValMod();
-		auto rateType = params[PID::RateType]->getValMod() > .5f;
-		auto phase = params[PID::Phase]->getValModDenorm();
-		auto shape = static_cast<int>(std::round(params[PID::Shape]->getValModDenorm()));
-		auto procedural = params[PID::RandType]->getValMod() > .5f;
+        const auto rateHz = params[PID::RateHz]->getValModDenorm();
+        const auto rateBeats = params[PID::RateBeats]->getValModDenorm();
+        const auto oct = params[PID::Octaves]->getValModDenorm();
+        const auto width = params[PID::Width]->getValMod();
+        const auto rateType = params[PID::RateType]->getValMod() > .5f;
+        const auto phase = params[PID::Phase]->getValModDenorm();
+        const auto shape = static_cast<int>(std::round(params[PID::Shape]->getValModDenorm()));
+        const auto procedural = params[PID::RandType]->getValMod() > .5f;
 		
-        perlin.setParameters
+        perlin
         (
-            (double)rateHz,
-            (double)rateBeats,
+            samples,
+            numChannels,
+            numSamples,
+            playHeadPos,
+            static_cast<double>(rateHz),
+            static_cast<double>(rateBeats),
             oct,
             width,
             phase,
@@ -504,8 +508,6 @@ namespace audio
             rateType,
             procedural
         );
-
-        perlin(samples, numChannels, numSamples, playHeadPos);
 
         const auto omnidirectional = params[PID::Orientation]->getValMod() < .5f;
         if (omnidirectional)

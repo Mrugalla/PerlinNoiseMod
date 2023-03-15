@@ -276,18 +276,21 @@ namespace gui
             const auto rateHz = 2. + iR * 13.;
             
             perlin.setSeed(rand.nextInt());
-            perlin.setParameters
+            perlin
             (
+                samples,
+                1,
+                width,
+                playHeadPos,
                 rateHz,
                 1.,
                 octaves,
                 0.f,
                 0.f,
-                audio::Perlin::Shape::Spline,
+                static_cast<audio::Perlin::Shape>(std::abs(rand.nextInt()) % 3),
                 false,
                 false
             );
-            perlin(samples, 1, width, playHeadPos);
             
             const auto brightness = .12f + iR * .2f;
             g.setColour(Colours::c(ColourID::Hover).withAlpha(1.f).withBrightness(brightness));

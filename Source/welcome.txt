@@ -1,5 +1,8 @@
-Welcome to the perlin noise synthesizer.
-It just synthesizes perlin noise.
+PerlinNoiseMod lets you synthesize perlin noise with
+a steppy, linear or round shape, in free or temposync mode.
+
+The procedural mode lets every noise segment correspond to
+a distinct combination of seed, rate and bpm.
 
 Hope u enjoy :3
 Florian
