@@ -86,13 +86,11 @@ namespace audio
 		/*  playHeadPos, rateHz */
 		void updatePosition(const PlayHeadPos& playHeadPos, double rateHz) noexcept
 		{
-			const auto timeInSamples = playHeadPos.timeInSamples;
-			const auto timeInSecs = static_cast<double>(timeInSamples) * sampleRateInv;
-			const auto timeInHz = timeInSecs * rateHz;
-			const auto timeInHzFloor = std::floor(timeInHz);
-			
-			noiseIdx = static_cast<int>(timeInHzFloor) & NoiseSizeMax;
-			phasor.phase.phase = timeInHz - timeInHzFloor;
+			const auto timeSecs = playHeadPos.timeInSeconds;
+			const auto timeHz = timeSecs * rateHz;
+			const auto timeHzFloor = std::floor(timeHz);
+			noiseIdx = static_cast<int>(timeHzFloor) & NoiseSizeMax;
+			phasor.phase.phase = timeHz - timeHzFloor;
 		}
 		
 		/* playHeadPos, rateBeatsInv */
